@@ -1814,7 +1814,6 @@ impl<T: Backing> ProcessorRunner<'_, T> {
     ///
     /// # Panics
     /// Panics if `names.len() != values.len()`.
-
     pub fn get_vp_registers(
         &mut self,
         #[cfg(guest_arch = "x86_64")] names: &[HvX64RegisterName],
