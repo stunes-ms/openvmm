@@ -1434,6 +1434,7 @@ impl UhProcessor<'_, TdxBacked> {
                 let subleaf = enter_state.rcx() as u32;
                 let xfem = self
                     .runner
+                    // TODO TDX GUEST VSM
                     .get_vp_register(HvX64RegisterName::Xfem, GuestVtl::Vtl0)
                     .map_err(|err| VpHaltReason::Hypervisor(UhRunVpError::EmulationState(err)))?
                     .as_u64();
@@ -1554,6 +1555,7 @@ impl UhProcessor<'_, TdxBacked> {
                     })
                 {
                     self.runner
+                        // TODO TDX GUEST VSM
                         .set_vp_register(HvX64RegisterName::Xfem, value.into(), GuestVtl::Vtl0)
                         .map_err(|err| {
                             VpHaltReason::Hypervisor(UhRunVpError::EmulationState(err))
@@ -1810,6 +1812,7 @@ impl UhProcessor<'_, TdxBacked> {
                             HvX64RegisterName::Sint0.0 + (msr - hvdef::HV_X64_MSR_SINT0),
                         ),
                         value.into(),
+                        // TODO TDX GUEST VSM
                         GuestVtl::Vtl0,
                     ) {
                         tracelimit::warn_ratelimited!(
