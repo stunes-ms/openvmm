@@ -148,7 +148,7 @@ impl BackingPrivate for HypervisorBackedArm64 {
                 .set_vp_register(
                     VpRegisterName::DeliverabilityNotifications,
                     u64::from(notifications).into(),
-                    Vtl::Vtl0,
+                    GuestVtl::Vtl0,
                 )
                 .expect("requesting deliverability is not a fallable operation");
             this.backing.deliverability_notifications =
@@ -211,7 +211,11 @@ impl BackingPrivate for HypervisorBackedArm64 {
             .set_interrupt_notification(true);
     }
 
-    fn request_untrusted_sint_readiness(this: &mut UhProcessor<'_, Self>, _vtl: Vtl, sints: u16) {
+    fn request_untrusted_sint_readiness(
+        this: &mut UhProcessor<'_, Self>,
+        _vtl: GuestVtl,
+        sints: u16,
+    ) {
         this.backing
             .next_deliverability_notifications
             .set_sints(this.backing.next_deliverability_notifications.sints() | sints);
@@ -350,7 +354,7 @@ impl AccessCpuState for UhProcessor<'_, HypervisorBackedArm64> {
             expensive_regs.push((HvArm64RegisterName::XSp, self.sp()));
         }
         self.runner
-            .set_vp_registers(expensive_regs, Vtl::Vtl0)
+            .set_vp_registers(expensive_regs, GuestVtl::Vtl0)
             .unwrap();
         self.runner.cpu_context_mut().x = self.backing.cpu_state.x;
         self.runner.cpu_context_mut().q = self.backing.cpu_state.q;
@@ -361,7 +365,7 @@ impl AccessCpuState for UhProcessor<'_, HypervisorBackedArm64> {
         if index == 18 && !self.backing.cpu_state.x18_valid {
             let reg_val = self
                 .runner
-                .get_vp_register(HvArm64RegisterName::X18, Vtl::Vtl0)
+                .get_vp_register(HvArm64RegisterName::X18, GuestVtl::Vtl0)
                 .expect("register query should not fail");
             self.backing.cpu_state.x[18] = reg_val.as_u64();
             self.backing.cpu_state.x18_valid = true;
@@ -423,7 +427,7 @@ impl AccessCpuState for UhProcessor<'_, HypervisorBackedArm64> {
         if self.backing.cpu_state.sp.is_none() {
             let reg_val = self
                 .runner
-                .get_vp_register(HvArm64RegisterName::XSp, Vtl::Vtl0)
+                .get_vp_register(HvArm64RegisterName::XSp, GuestVtl::Vtl0)
                 .expect("register query should not fail");
             self.backing.cpu_state.sp = Some(reg_val.as_u64());
         }
@@ -454,7 +458,7 @@ impl AccessCpuState for UhProcessor<'_, HypervisorBackedArm64> {
         if self.backing.cpu_state.pc.is_none() {
             let reg_val = self
                 .runner
-                .get_vp_register(HvArm64RegisterName::XPc, Vtl::Vtl0)
+                .get_vp_register(HvArm64RegisterName::XPc, GuestVtl::Vtl0)
                 .expect("register query should not fail");
             self.backing.cpu_state.pc = Some(reg_val.as_u64());
         }
@@ -469,7 +473,7 @@ impl AccessCpuState for UhProcessor<'_, HypervisorBackedArm64> {
         if self.backing.cpu_state.cpsr.is_none() {
             let reg_val = self
                 .runner
-                .get_vp_register(HvArm64RegisterName::Cpsr, Vtl::Vtl0)
+                .get_vp_register(HvArm64RegisterName::Cpsr, GuestVtl::Vtl0)
                 .expect("register query should not fail");
             self.backing.cpu_state.cpsr = Some(reg_val.as_u64());
         }
@@ -559,7 +563,7 @@ impl<T: CpuIo> EmulatorSupport for UhEmulationState<'_, '_, T, HypervisorBacked>
             let cpsr: Cpsr64 = self
                 .vp
                 .runner
-                .get_vp_register(HvArm64RegisterName::SpsrEl2, Vtl::Vtl0)
+                .get_vp_register(HvArm64RegisterName::SpsrEl2, GuestVtl::Vtl0)
                 .map_err(UhRunVpError::EmulationState)?
                 .as_u64()
                 .into();
@@ -862,9 +866,9 @@ mod save_restore {
     use super::HypervisorBackedArm64;
     use super::UhProcessor;
     use anyhow::anyhow;
+    use hcl::GuestVtl;
     use hvdef::HvArm64RegisterName;
     use hvdef::HvInternalActivityRegister;
-    use hvdef::Vtl;
     use virt::Processor;
     use vmcore::save_restore::RestoreError;
     use vmcore::save_restore::SaveError;
@@ -896,7 +900,7 @@ mod save_restore {
 
             let internal_activity = self
                 .runner
-                .get_vp_register(HvArm64RegisterName::InternalActivityState, Vtl::Vtl0)
+                .get_vp_register(HvArm64RegisterName::InternalActivityState, GuestVtl::Vtl0)
                 .map_err(|err| {
                     SaveError::Other(anyhow!("unable to query startup suspend: {}", err))
                 })?;
@@ -919,7 +923,7 @@ mod save_restore {
                 self.runner
                     .set_vp_registers(
                         [(HvArm64RegisterName::InternalActivityState, reg)],
-                        Vtl::Vtl0,
+                        GuestVtl::Vtl0,
                     )
                     .map_err(|err| {
                         RestoreError::Other(anyhow!(

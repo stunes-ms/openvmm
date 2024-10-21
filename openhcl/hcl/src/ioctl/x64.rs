@@ -12,6 +12,7 @@ use super::ProcessorRunner;
 use super::TranslateGvaToGpaError;
 use super::TranslateResult;
 use crate::protocol::hcl_cpu_context_x64;
+use crate::GuestVtl;
 use hvdef::HvRegisterName;
 use hvdef::HvRegisterValue;
 use hvdef::HvX64RegisterName;
@@ -186,7 +187,7 @@ impl BackingPrivate for MshvX64 {
         runner: &mut ProcessorRunner<'_, Self>,
         name: HvRegisterName,
         value: HvRegisterValue,
-        vtl: Vtl,
+        vtl: GuestVtl,
     ) -> Result<bool, Error> {
         // Try to set the register in the CPU context.
         let name = name.into();
@@ -294,7 +295,7 @@ impl BackingPrivate for MshvX64 {
     fn try_get_reg(
         runner: &ProcessorRunner<'_, Self>,
         name: HvRegisterName,
-        vtl: Vtl,
+        vtl: GuestVtl,
     ) -> Result<Option<HvRegisterValue>, Error> {
         let name = name.into();
 
