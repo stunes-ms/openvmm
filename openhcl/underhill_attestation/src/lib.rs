@@ -425,7 +425,6 @@ async fn unlock_vmgs_data_store(
     bios_guid: Guid,
 ) -> Result<(), UnlockVmgsDataStoreError> {
     let mut new_key = false; // Indicate if we need to add a new key after unlock
-    let mut old_key = false; // Indicate if there was an old egress key from key rolling
 
     let Some(Keys {
         ingress: new_ingress_key,
@@ -440,13 +439,6 @@ async fn unlock_vmgs_data_store(
         return Ok(());
     };
 
-    if old_egress_key.is_some() {
-        // Key rolling did not complete successfully last time and there's an old egress
-        // key in the VMGS. It may be needed for decryption.
-        tracing::trace!(CVM_ALLOWED, "Old EgressKey found");
-        old_key = true;
-    }
-
     if new_ingress_key != new_egress_key {
         tracing::trace!(CVM_ALLOWED, "EgressKey is different than IngressKey");
         new_key = true;
@@ -459,22 +451,19 @@ async fn unlock_vmgs_data_store(
         tracing::info!(CVM_ALLOWED, "Decrypting vmgs file...");
         match vmgs.unlock_with_encryption_key(&new_ingress_key).await {
             Ok(index) => old_index = index,
-            Err(e) if old_key => {
-                // If last time is provisioning and we failed to persist KP then we'll come here.
-                tracing::trace!(
-                    CVM_ALLOWED,
-                    error = &e as &dyn std::error::Error,
-                    "Unlock with ingress key error"
-                );
-                // The datastore can be unlocked using EgressKey
-                old_index = vmgs
-                    .unlock_with_encryption_key(&old_egress_key.unwrap())
-                    .await
-                    .map_err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingEgressKey)?;
+            Err(e) => {
+                if let Some(key) = old_egress_key {
+                    // Key rolling did not complete successfully last time and there's an old
+                    // egress key in the VMGS. It may be needed for decryption.
+                    tracing::trace!(CVM_ALLOWED, "Old EgressKey found");
+                    old_index = vmgs
+                        .unlock_with_encryption_key(&key)
+                        .await
+                        .map_err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingEgressKey)?;
+                } else {
+                    Err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingIngressKey(e))?
+                }
             }
-            Err(e) => Err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingIngressKey(
-                e,
-            ))?,
         }
     } else {
         // The datastore is not encrypted which means it's during provision.
