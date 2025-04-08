@@ -921,14 +921,12 @@ async fn get_derived_keys(
             .map_err(GetDerivedKeysError::DeriveIngressKey)?;
     }
 
-    // Always derive a new egress key using best available seed
-    derived_keys.decrypt_egress = match decrypt_egress_key {
-        Some(key) => {
-            Some(crypto::derive_key(&key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
-                .map_err(GetDerivedKeysError::DeriveEgressKey)?)
-        }
-        None => None,
-    };
+    derived_keys.decrypt_egress = decrypt_egress_key
+        .map(|key| {
+            crypto::derive_key(&key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
+        })
+        .transpose()
+        .map_err(GetDerivedKeysError::DeriveEgressKey)?;
 
     derived_keys.encrypt_egress = crypto::derive_key(&encrypt_egress_key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
         .map_err(GetDerivedKeysError::DeriveEgressKey)?;
