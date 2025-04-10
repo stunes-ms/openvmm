@@ -429,7 +429,7 @@ async fn unlock_vmgs_data_store(
     let Some(Keys {
         ingress: new_ingress_key,
         decrypt_egress: old_egress_key,
-        encrypt_egress: new_egress_key
+        encrypt_egress: new_egress_key,
     }) = derived_keys
     else {
         tracing::info!(
@@ -461,7 +461,9 @@ async fn unlock_vmgs_data_store(
                         .await
                         .map_err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingEgressKey)?;
                 } else {
-                    Err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingIngressKey(e))?
+                    Err(UnlockVmgsDataStoreError::VmgsUnlockUsingExistingIngressKey(
+                        e,
+                    ))?
                 }
             }
         }
@@ -583,34 +585,45 @@ async fn get_derived_keys(
         .all(|&x| x == 0);
 
     // Handle key released via attestation process (tenant key) to get keys from KeyProtector
-    let (ingress_key, decrypt_egress_key, encrypt_egress_key, no_kek) = if let Some(ingress_kek) = ingress_rsa_kek {
-        let keys = match key_protector.unwrap_and_rotate_keys(
-            ingress_kek,
-            wrapped_des_key,
-            ingress_idx,
-            egress_idx,
-        ) {
-            Ok(keys) => keys,
-            Err(e)
-                if matches!(
-                    e,
-                    GetKeysFromKeyProtectorError::DesKeyRsaUnwrap(_)
-                        | GetKeysFromKeyProtectorError::IngressDekRsaUnwrap(_)
-                ) =>
-            {
-                get.event_log_fatal(
-                    guest_emulation_transport::api::EventLogId::DEK_DECRYPTION_FAILED,
-                )
-                .await;
+    let (ingress_key, decrypt_egress_key, encrypt_egress_key, no_kek) =
+        if let Some(ingress_kek) = ingress_rsa_kek {
+            let keys = match key_protector.unwrap_and_rotate_keys(
+                ingress_kek,
+                wrapped_des_key,
+                ingress_idx,
+                egress_idx,
+            ) {
+                Ok(keys) => keys,
+                Err(e)
+                    if matches!(
+                        e,
+                        GetKeysFromKeyProtectorError::DesKeyRsaUnwrap(_)
+                            | GetKeysFromKeyProtectorError::IngressDekRsaUnwrap(_)
+                    ) =>
+                {
+                    get.event_log_fatal(
+                        guest_emulation_transport::api::EventLogId::DEK_DECRYPTION_FAILED,
+                    )
+                    .await;
 
-                return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e));
-            }
-            Err(e) => return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e)),
+                    return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e));
+                }
+                Err(e) => return Err(GetDerivedKeysError::GetKeysFromKeyProtector(e)),
+            };
+            (
+                keys.ingress,
+                keys.decrypt_egress,
+                keys.encrypt_egress,
+                false,
+            )
+        } else {
+            (
+                [0u8; AES_GCM_KEY_LENGTH],
+                None,
+                [0u8; AES_GCM_KEY_LENGTH],
+                true,
+            )
         };
-        (keys.ingress, keys.decrypt_egress, keys.encrypt_egress, false)
-    } else {
-        ([0u8; AES_GCM_KEY_LENGTH], None, [0u8; AES_GCM_KEY_LENGTH], true)
-    };
 
     // Handle various sources of Guest State Protection
     let mut requires_gsp_by_id =
@@ -797,9 +810,11 @@ async fn get_derived_keys(
         derived_keys.encrypt_egress = encrypt_egress_key;
 
         if let Some(hardware_derived_keys) = hardware_derived_keys {
-            let hardware_key_protector =
-                HardwareKeyProtector::seal_key(&hardware_derived_keys, &derived_keys.encrypt_egress)
-                    .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
+            let hardware_key_protector = HardwareKeyProtector::seal_key(
+                &hardware_derived_keys,
+                &derived_keys.encrypt_egress,
+            )
+            .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
             vmgs::write_hardware_key_protector(&hardware_key_protector, vmgs)
                 .await
                 .map_err(GetDerivedKeysError::VmgsWriteHardwareKeyProtector)?;
@@ -923,14 +938,13 @@ async fn get_derived_keys(
 
     // Always derive a new egress key using best available seed
     derived_keys.decrypt_egress = decrypt_egress_key
-        .map(|key| {
-            crypto::derive_key(&key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
-        })
+        .map(|key| crypto::derive_key(&key, &egress_seed, VMGS_KEY_DERIVE_LABEL))
         .transpose()
         .map_err(GetDerivedKeysError::DeriveEgressKey)?;
 
-    derived_keys.encrypt_egress = crypto::derive_key(&encrypt_egress_key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
-        .map_err(GetDerivedKeysError::DeriveEgressKey)?;
+    derived_keys.encrypt_egress =
+        crypto::derive_key(&encrypt_egress_key, &egress_seed, VMGS_KEY_DERIVE_LABEL)
+            .map_err(GetDerivedKeysError::DeriveEgressKey)?;
 
     if key_protector_settings.should_write_kp {
         // Update with all seeds used, but do not write until data store is unlocked
@@ -940,9 +954,11 @@ async fn get_derived_keys(
         key_protector.gsp[egress_idx].gsp_length = gsp_response.encrypted_gsp.length;
 
         if let Some(hardware_derived_keys) = hardware_derived_keys {
-            let hardware_key_protector =
-                HardwareKeyProtector::seal_key(&hardware_derived_keys, &derived_keys.encrypt_egress)
-                    .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
+            let hardware_key_protector = HardwareKeyProtector::seal_key(
+                &hardware_derived_keys,
+                &derived_keys.encrypt_egress,
+            )
+            .map_err(GetDerivedKeysError::SealEgressKeyUsingHardwareDerivedKeys)?;
 
             vmgs::write_hardware_key_protector(&hardware_key_protector, vmgs)
                 .await
@@ -1255,7 +1271,11 @@ mod tests {
 
         let ingress = [1; AES_GCM_KEY_LENGTH];
         let egress = [2; AES_GCM_KEY_LENGTH];
-        let derived_keys = Keys { ingress, decrypt_egress: None, encrypt_egress: egress };
+        let derived_keys = Keys {
+            ingress,
+            decrypt_egress: None,
+            encrypt_egress: egress,
+        };
 
         let key_protector_settings = KeyProtectorSettings {
             should_write_kp: true,
@@ -1365,7 +1385,11 @@ mod tests {
         let ingress = [1; AES_GCM_KEY_LENGTH];
         let egress = [2; AES_GCM_KEY_LENGTH];
 
-        let derived_keys = Keys { ingress, decrypt_egress: None, encrypt_egress: egress };
+        let derived_keys = Keys {
+            ingress,
+            decrypt_egress: None,
+            encrypt_egress: egress,
+        };
 
         vmgs.add_new_encryption_key(&ingress, EncryptionAlgorithm::AES_GCM)
             .await
@@ -1425,7 +1449,11 @@ mod tests {
         let decrypt_egress = [2; AES_GCM_KEY_LENGTH];
         let encrypt_egress = [3; AES_GCM_KEY_LENGTH];
 
-        let derived_keys = Keys { ingress, decrypt_egress: Some(decrypt_egress), encrypt_egress};
+        let derived_keys = Keys {
+            ingress,
+            decrypt_egress: Some(decrypt_egress),
+            encrypt_egress,
+        };
 
         // Add only the egress key to the VMGS to simulate a failure to persist the ingress key
         let egress_key_index = vmgs
@@ -1434,7 +1462,10 @@ mod tests {
             .unwrap();
         assert_eq!(egress_key_index, 0);
 
-        let found_egress_key_index = vmgs.unlock_with_encryption_key(&decrypt_egress).await.unwrap();
+        let found_egress_key_index = vmgs
+            .unlock_with_encryption_key(&decrypt_egress)
+            .await
+            .unwrap();
         assert_eq!(found_egress_key_index, egress_key_index);
 
         // Confirm that the ingress key cannot be used to unlock the VMGS
@@ -1464,10 +1495,15 @@ mod tests {
         vmgs.unlock_with_encryption_key(&ingress).await.unwrap_err();
 
         // Confirm that the decrypt egress key no longer works
-        vmgs.unlock_with_encryption_key(&decrypt_egress).await.unwrap_err();
+        vmgs.unlock_with_encryption_key(&decrypt_egress)
+            .await
+            .unwrap_err();
 
         // The encrypt_egress key can unlock the VMGS and was added as a new key
-        let found_egress_key_index = vmgs.unlock_with_encryption_key(&encrypt_egress).await.unwrap();
+        let found_egress_key_index = vmgs
+            .unlock_with_encryption_key(&encrypt_egress)
+            .await
+            .unwrap();
         assert_eq!(found_egress_key_index, 1);
 
         // Since both `should_write_kp` and `use_gsp_by_id` are true, both key protectors should be updated

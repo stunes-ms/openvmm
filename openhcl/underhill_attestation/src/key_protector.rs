@@ -258,8 +258,7 @@ impl KeyProtectorExt for KeyProtector {
             })?
         }
 
-        self.dek[egress_idx].dek_buffer[..new_egress_key.len()]
-            .copy_from_slice(&new_egress_key);
+        self.dek[egress_idx].dek_buffer[..new_egress_key.len()].copy_from_slice(&new_egress_key);
 
         tracing::info!(
             CVM_CONFIDENTIAL,
