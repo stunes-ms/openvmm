@@ -585,7 +585,7 @@ async fn get_derived_keys(
         .all(|&x| x == 0);
 
     // Handle key released via attestation process (tenant key) to get keys from KeyProtector
-    let (ingress_key, decrypt_egress_key, encrypt_egress_key, no_kek) =
+    let (ingress_key, mut decrypt_egress_key, encrypt_egress_key, no_kek) =
         if let Some(ingress_kek) = ingress_rsa_kek {
             let keys = match key_protector.unwrap_and_rotate_keys(
                 ingress_kek,
@@ -926,6 +926,7 @@ async fn get_derived_keys(
                     [..gsp_response.decrypted_gsp[egress_idx].length as usize]
                     .to_vec();
                 key_protector_settings.should_write_kp = false;
+                decrypt_egress_key = Some(encrypt_egress_key.clone());
             }
         }
     }
