@@ -461,6 +461,7 @@ impl TpmEngineHelper {
         preserve_ak_cert: bool,
         support_attestation_report: bool,
     ) -> Result<(), TpmHelperError> {
+        /* If the AKCert index exists and is not platform-defined, skip recreating it. */
         let ak_cert_non_platform = if let Some(res) = self.find_nv_index(TPM_NV_INDEX_AIK_CERT)? {
             let nv_bits = TpmaNvBits::from(res.nv_public.nv_public.attributes.0.get());
             !nv_bits.nv_platformcreate()
