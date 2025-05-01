@@ -461,26 +461,21 @@ impl TpmEngineHelper {
         preserve_ak_cert: bool,
         support_attestation_report: bool,
     ) -> Result<(), TpmHelperError> {
-        // If the AKCert index exists and is not platform-defined, skip recreating it.
-        let ak_cert_non_platform = if let Some(res) = self.find_nv_index(TPM_NV_INDEX_AIK_CERT)? {
-            let nv_bits = TpmaNvBits::from(res.nv_public.nv_public.attributes.0.get());
-            !nv_bits.nv_platformcreate()
-        } else {
-            false
-        };
+        let (define_index, previous_ak_cert) = {
+            let mut output = [0u8; MAX_NV_INDEX_SIZE as usize];
 
-        if !ak_cert_non_platform {
-            let previous_ak_cert = {
-                let mut output = [0u8; MAX_NV_INDEX_SIZE as usize];
+            // Attempt to remove previous `TPM_NV_INDEX_AIK_CERT` regardless it is pre-provisioned
+            // (non-platform-created) or platform-created. Doing so ensures that we always recreate
+            // the nv index with newly-created auth_value (which does not persist across boots) and
+            // consistent index size for each boot.
+            match self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output)? {
+                NvIndexState::Available => {
+                    tracing::info!("AK cert nv index with available data");
 
-                // Attempt to remove previous `TPM_NV_INDEX_AIK_CERT` regardless it is pre-provisioned
-                // (non-platform-created) or platform-created. Doing so ensures that we always recreate
-                // the nv index with newly-created auth_value (which does not persist across boots) and
-                // consistent index size for each boot.
-                match self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output)? {
-                    NvIndexState::Available => {
-                        tracing::info!("AK cert nv index with available data");
+                    let res = self.find_nv_index(TPM_NV_INDEX_AIK_CERT)?.unwrap();
+                    let nv_bits = TpmaNvBits::from(res.nv_public.nv_public.attributes.0.get());
 
+                    if nv_bits.nv_platformcreate() {
                         self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
                             .map_err(|error| TpmHelperError::TpmCommandError {
                                 command_debug_info: CommandDebugInfo {
@@ -490,31 +485,34 @@ impl TpmEngineHelper {
                                 },
                                 error,
                             })?;
-
-                        Some(output)
-                    }
-                    NvIndexState::Uninitialized => {
-                        tracing::info!("AK cert nv index allocated but uninitialized");
-
-                        self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
-                            .map_err(|error| TpmHelperError::TpmCommandError {
-                                command_debug_info: CommandDebugInfo {
-                                    command_code: CommandCodeEnum::NV_UndefineSpace,
-                                    auth_handle: Some(TPM20_RH_PLATFORM),
-                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                },
-                                error,
-                            })?;
-
-                        None
-                    }
-                    NvIndexState::Unallocated => {
-                        tracing::info!("AK cert nv index not allocated yet");
-                        None
+                        (true, Some(output))
+                    } else {
+                        (false, Some(output))
                     }
                 }
-            };
+                NvIndexState::Uninitialized => {
+                    tracing::info!("AK cert nv index allocated but uninitialized");
 
+                    self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
+                        .map_err(|error| TpmHelperError::TpmCommandError {
+                            command_debug_info: CommandDebugInfo {
+                                command_code: CommandCodeEnum::NV_UndefineSpace,
+                                auth_handle: Some(TPM20_RH_PLATFORM),
+                                nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                            },
+                            error,
+                        })?;
+
+                    (true, None)
+                }
+                NvIndexState::Unallocated => {
+                    tracing::info!("AK cert nv index not allocated yet");
+                    (true, None)
+                }
+            }
+        };
+
+        if define_index {
             tracing::info!(
                 nv_index = format!("{:x}", TPM_NV_INDEX_AIK_CERT),
                 size = MAX_NV_INDEX_SIZE,
