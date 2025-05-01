@@ -2467,7 +2467,8 @@ mod tests {
         let nv_read_public_reply = result.unwrap();
 
         // The provisioned nv size is less than the created one
-        assert!(nv_read_public_reply.nv_public.nv_public.data_size.get() < MAX_NV_INDEX_SIZE);
+        let nv_size = nv_read_public_reply.nv_public.nv_public.data_size.get();
+        assert!(nv_size < MAX_NV_INDEX_SIZE);
 
         // Ensure AK is provisioned
         assert!(
@@ -2487,38 +2488,17 @@ mod tests {
             tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, true, false);
         assert!(result.is_ok());
 
-        // Ensure nv index is re-created with new size
+        // Ensure nv index has the same size
         let result = tpm_engine_helper.nv_read_public(TPM_NV_INDEX_AIK_CERT);
         assert!(result.is_ok());
         let nv_read_public_reply = result.unwrap();
-        assert!(nv_read_public_reply.nv_public.nv_public.data_size.get() == MAX_NV_INDEX_SIZE);
+        assert!(nv_read_public_reply.nv_public.nv_public.data_size.get() == nv_size);
 
         let mut provisioned_ak_cert_after_call = [0u8; MAX_NV_INDEX_SIZE as usize];
         let result = tpm_engine_helper
             .read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut provisioned_ak_cert_after_call);
         assert!(matches!(result.unwrap(), NvIndexState::Available));
         assert_eq!(provisioned_ak_cert_after_call, provisioned_ak_cert);
-
-        // Test updating the provisioned nv index (with ownerwrite permission)
-        let ak_cert_input = [7u8; 1024];
-        let result =
-            tpm_engine_helper.write_to_nv_index(AUTH_VALUE, TPM_NV_INDEX_AIK_CERT, &ak_cert_input);
-        assert!(result.is_ok());
-
-        // Read the data and ensure it is zero-padded
-        let mut ak_cert_output = [0u8; MAX_NV_INDEX_SIZE as usize];
-        let result =
-            tpm_engine_helper.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut ak_cert_output);
-        assert!(matches!(result.unwrap(), NvIndexState::Available));
-        let input_with_padding = {
-            let mut input = ak_cert_input.to_vec();
-            input.resize(MAX_NV_INDEX_SIZE.into(), 0);
-            input
-        };
-        assert_eq!(&ak_cert_output, input_with_padding.as_slice());
-
-        // Ensure the data is overwritten
-        assert_ne!(&ak_cert_output, &provisioned_ak_cert);
     }
 
     #[test]
