@@ -464,10 +464,13 @@ impl TpmEngineHelper {
         let (define_index, previous_ak_cert) = {
             let mut output = [0u8; MAX_NV_INDEX_SIZE as usize];
 
-            // Attempt to remove previous `TPM_NV_INDEX_AIK_CERT` regardless it is pre-provisioned
-            // (non-platform-created) or platform-created. Doing so ensures that we always recreate
-            // the nv index with newly-created auth_value (which does not persist across boots) and
-            // consistent index size for each boot.
+            // If the existing TPM_NV_INDEX_AIK_CERT is platform-defined, delete and recreate it.
+            // Doing so ensures that the NV index is created with the newly-created auth_value (which
+            // does not persist across boots) and consistent index size.
+            //
+            // If the existing TPM_NV_INDEX_AIK_CERT is not platform-defined, the vTPM blob may not
+            // have enough space to recreate the index with a larger size. In that case, don't
+            // change anything.
             match self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output)? {
                 NvIndexState::Available => {
                     tracing::info!("AK cert nv index with available data");
