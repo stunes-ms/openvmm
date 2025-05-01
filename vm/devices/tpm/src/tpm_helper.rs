@@ -461,79 +461,88 @@ impl TpmEngineHelper {
         preserve_ak_cert: bool,
         support_attestation_report: bool,
     ) -> Result<(), TpmHelperError> {
-        let previous_ak_cert = {
-            let mut output = [0u8; MAX_NV_INDEX_SIZE as usize];
-
-            // Attempt to remove previous `TPM_NV_INDEX_AIK_CERT` regardless it is pre-provisioned
-            // (non-platform-created) or platform-created. Doing so ensures that we always recreate
-            // the nv index with newly-created auth_value (which does not persist across boots) and
-            // consistent index size for each boot.
-            match self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output)? {
-                NvIndexState::Available => {
-                    tracing::info!("AK cert nv index with available data");
-
-                    self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
-                        .map_err(|error| TpmHelperError::TpmCommandError {
-                            command_debug_info: CommandDebugInfo {
-                                command_code: CommandCodeEnum::NV_UndefineSpace,
-                                auth_handle: Some(TPM20_RH_PLATFORM),
-                                nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                            },
-                            error,
-                        })?;
-
-                    Some(output)
-                }
-                NvIndexState::Uninitialized => {
-                    tracing::info!("AK cert nv index allocated but uninitialized");
-
-                    self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
-                        .map_err(|error| TpmHelperError::TpmCommandError {
-                            command_debug_info: CommandDebugInfo {
-                                command_code: CommandCodeEnum::NV_UndefineSpace,
-                                auth_handle: Some(TPM20_RH_PLATFORM),
-                                nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                            },
-                            error,
-                        })?;
-
-                    None
-                }
-                NvIndexState::Unallocated => {
-                    tracing::info!("AK cert nv index not allocated yet");
-                    None
-                }
-            }
+        let ak_cert_non_platform = if let Some(res) = self.find_nv_index(TPM_NV_INDEX_AIK_CERT)? {
+            let nv_bits = TpmaNvBits::from(res.nv_public.nv_public.attributes.0.get());
+            !nv_bits.nv_platformcreate()
+        } else {
+            false
         };
 
-        tracing::info!(
-            nv_index = format!("{:x}", TPM_NV_INDEX_AIK_CERT),
-            size = MAX_NV_INDEX_SIZE,
-            "Allocate nv index for AK cert"
-        );
+        if !ak_cert_non_platform {
+            let previous_ak_cert = {
+                let mut output = [0u8; MAX_NV_INDEX_SIZE as usize];
 
-        self.nv_define_space(
-            TPM20_RH_PLATFORM,
-            auth_value,
-            TPM_NV_INDEX_AIK_CERT,
-            MAX_NV_INDEX_SIZE,
-        )
-        .map_err(|error| TpmHelperError::TpmCommandError {
-            command_debug_info: CommandDebugInfo {
-                command_code: CommandCodeEnum::NV_DefineSpace,
-                auth_handle: Some(TPM20_RH_PLATFORM),
-                nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-            },
-            error,
-        })?;
+                // Attempt to remove previous `TPM_NV_INDEX_AIK_CERT` regardless it is pre-provisioned
+                // (non-platform-created) or platform-created. Doing so ensures that we always recreate
+                // the nv index with newly-created auth_value (which does not persist across boots) and
+                // consistent index size for each boot.
+                match self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output)? {
+                    NvIndexState::Available => {
+                        tracing::info!("AK cert nv index with available data");
 
-        if preserve_ak_cert {
-            if let Some(data) = previous_ak_cert {
-                // For resiliency, write the previous AK cert to the newly created nv index
-                // in case the following boot-time AK cert request fails.
-                tracing::info!("Preserve previous AK cert across boot");
+                        self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
+                            .map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_UndefineSpace,
+                                    auth_handle: Some(TPM20_RH_PLATFORM),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
 
-                self.write_to_nv_index(auth_value, TPM_NV_INDEX_AIK_CERT, &data)?;
+                        Some(output)
+                    }
+                    NvIndexState::Uninitialized => {
+                        tracing::info!("AK cert nv index allocated but uninitialized");
+
+                        self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
+                            .map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_UndefineSpace,
+                                    auth_handle: Some(TPM20_RH_PLATFORM),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
+
+                        None
+                    }
+                    NvIndexState::Unallocated => {
+                        tracing::info!("AK cert nv index not allocated yet");
+                        None
+                    }
+                }
+            };
+
+            tracing::info!(
+                nv_index = format!("{:x}", TPM_NV_INDEX_AIK_CERT),
+                size = MAX_NV_INDEX_SIZE,
+                "Allocate nv index for AK cert"
+            );
+
+            self.nv_define_space(
+                TPM20_RH_PLATFORM,
+                auth_value,
+                TPM_NV_INDEX_AIK_CERT,
+                MAX_NV_INDEX_SIZE,
+            )
+            .map_err(|error| TpmHelperError::TpmCommandError {
+                command_debug_info: CommandDebugInfo {
+                    command_code: CommandCodeEnum::NV_DefineSpace,
+                    auth_handle: Some(TPM20_RH_PLATFORM),
+                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                },
+                error,
+            })?;
+
+            if preserve_ak_cert {
+                if let Some(data) = previous_ak_cert {
+                    // For resiliency, write the previous AK cert to the newly created nv index
+                    // in case the following boot-time AK cert request fails.
+                    tracing::info!("Preserve previous AK cert across boot");
+
+                    self.write_to_nv_index(auth_value, TPM_NV_INDEX_AIK_CERT, &data)?;
+                }
             }
         }
 
