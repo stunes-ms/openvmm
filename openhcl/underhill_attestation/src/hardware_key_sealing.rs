@@ -232,6 +232,7 @@ mod tests {
             secure_boot: false,
             tpm_enabled: false,
             tpm_persisted: false,
+            debug_enabled: false,
             vm_unique_id: "".to_string(),
         };
         let mock_call = Box::new(MockTeeCall {}) as Box<dyn tee_call::TeeCall>;
