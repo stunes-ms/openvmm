@@ -347,8 +347,8 @@ pub mod runtime_claims {
         pub tpm_persisted: bool,
         /// Whether confidential debugging is enabled
         pub debug_enabled: bool,
-        /// Whether the dynamic command line is populated
-        pub has_dyn_cmd_line: bool,
+        /// Dynamic command line provided by the host
+        pub dyn_cmd_line: String,
         /// VM id
         #[serde(rename = "vmUniqueId")]
         pub vm_unique_id: String,

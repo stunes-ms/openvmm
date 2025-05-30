@@ -1604,10 +1604,7 @@ async fn new_underhill_vm(
         tpm_enabled: dps.general.tpm_enabled,
         tpm_persisted: !dps.general.suppress_attestation.unwrap_or(false),
         debug_enabled: confidential_debug_enabled(),
-        has_dyn_cmd_line: !runtime_params
-            .parsed_openhcl_boot()
-            .host_provided_cmdline
-            .is_empty(),
+        dyn_cmd_line: runtime_params.parsed_openhcl_boot().host_provided_cmdline,
         vm_unique_id: dps.general.bios_guid.to_string(),
     };
 
