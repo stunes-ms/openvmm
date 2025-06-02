@@ -351,7 +351,7 @@ impl PartitionInfo {
         .map_err(|_| DtError::CommandLineSize)?;
 
         // Depending on policy, write what the host specified in the chosen node.
-        if can_trust_host && command_line.policy == CommandLinePolicy::APPEND_CHOSEN {
+        if command_line.policy == CommandLinePolicy::APPEND_CHOSEN {
             // Parse in extra options from the host provided command line.
             options.parse(&parsed.command_line);
             write!(storage.cmdline, " {}", &parsed.command_line)
