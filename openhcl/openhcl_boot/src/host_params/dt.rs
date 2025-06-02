@@ -325,7 +325,6 @@ impl PartitionInfo {
         params: &'a ShimParams,
         storage: &'a mut Self,
         mut options: BootCommandLineOptions,
-        can_trust_host: bool,
     ) -> Result<Option<&'a mut Self>, DtError> {
         let dt = params.device_tree();
 
@@ -508,7 +507,7 @@ impl PartitionInfo {
         }
 
         // If we can trust the host, use the provided alias map
-        if can_trust_host {
+        if params.isolation_type == IsolationType::None {
             storage.vtl0_alias_map = parsed.vtl0_alias_map;
         }
 

@@ -239,11 +239,12 @@ fn build_kernel_command_line(
     // com1. This is overridden by any user customizations in the static or
     // dynamic command line, as this console argument provided by the bootloader
     // comes first.
-    let console = if partition_info.com3_serial_available && can_trust_host {
-        "ttyS2,115200"
-    } else {
-        "ttynull"
-    };
+    let console =
+        if partition_info.com3_serial_available && partition_info.boot_options.confidential_debug {
+            "ttyS2,115200"
+        } else {
+            "ttynull"
+        };
     write!(cmdline, "console={console} ")?;
 
     if params.isolation_type != IsolationType::None {
@@ -251,6 +252,14 @@ fn build_kernel_command_line(
             cmdline,
             "{}=1 ",
             underhill_confidentiality::OPENHCL_CONFIDENTIAL_ENV_VAR_NAME
+        )?;
+    }
+
+    if partition_info.boot_options.confidential_debug {
+        write!(
+            cmdline,
+            "{}=1 ",
+            underhill_confidentiality::OPENHCL_CONFIDENTIAL_DEBUG_ENV_VAR_NAME
         )?;
     }
 
@@ -621,12 +630,11 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
     let boot_reftime = get_ref_time(p.isolation_type);
 
     let mut dt_storage = off_stack!(PartitionInfo, PartitionInfo::new());
-    let partition_info =
-        match PartitionInfo::read_from_dt(&p, &mut dt_storage, static_options, can_trust_host) {
-            Ok(Some(val)) => val,
-            Ok(None) => panic!("host did not provide a device tree"),
-            Err(e) => panic!("unable to read device tree params {}", e),
-        };
+    let partition_info = match PartitionInfo::read_from_dt(&p, &mut dt_storage, static_options) {
+        Ok(Some(val)) => val,
+        Ok(None) => panic!("host did not provide a device tree"),
+        Err(e) => panic!("unable to read device tree params {}", e),
+    };
 
     // Fill out the non-devicetree derived parts of PartitionInfo.
     if !p.isolation_type.is_hardware_isolated()
@@ -658,9 +666,8 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         partition_info.vtl0_alias_map = None;
     }
 
-    if can_trust_host {
+    if partition_info.boot_options.confidential_debug {
         // Enable late log output if requested in the dynamic command line.
-        // Confidential debug is only allowed in the static command line.
         if let Some(typ) = partition_info.boot_options.logger {
             boot_logger_init(p.isolation_type, typ);
         } else if partition_info.com3_serial_available && cfg!(target_arch = "x86_64") {
