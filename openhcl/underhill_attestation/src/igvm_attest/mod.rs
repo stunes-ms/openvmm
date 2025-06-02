@@ -330,8 +330,8 @@ mod tests {
     #[test]
     fn test_dyn_cmd_line() {
         // Try round-tripping a dynamic command line with quotes and other nasty things.
-        const CMDLINE: &str = "FOO=\"bar\" BAZ=\"\"\"";
-        const EXPECTED_JWK: &str = r#"{"root-cert-thumbprint":"","console-enabled":false,"secure-boot":false,"tpm-enabled":false,"tpm-persisted":false,"debug-enabled":false,"dyn-cmd-line":"FOO=\"bar\" BAZ=\"\"\"","vmUniqueId":""}"#;
+        const CMDLINE: &str = "FOO=\"bar\" BAZ=\"\"\"\\";
+        const EXPECTED_JWK: &str = r#"{"root-cert-thumbprint":"","console-enabled":false,"secure-boot":false,"tpm-enabled":false,"tpm-persisted":false,"debug-enabled":false,"dyn-cmd-line":"FOO=\"bar\" BAZ=\"\"\"\\","vmUniqueId":""}"#;
 
         let attestation_vm_config = AttestationVmConfig {
             current_time: None,
