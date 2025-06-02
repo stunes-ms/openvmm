@@ -72,7 +72,6 @@ fn build_kernel_command_line(
     params: &ShimParams,
     cmdline: &mut ArrayString<COMMAND_LINE_SIZE>,
     partition_info: &PartitionInfo,
-    can_trust_host: bool,
     sidecar: Option<&SidecarConfig<'_>>,
 ) -> Result<(), CommandLineTooLong> {
     // For reference:
@@ -239,12 +238,14 @@ fn build_kernel_command_line(
     // com1. This is overridden by any user customizations in the static or
     // dynamic command line, as this console argument provided by the bootloader
     // comes first.
-    let console =
-        if partition_info.com3_serial_available && partition_info.boot_options.confidential_debug {
-            "ttyS2,115200"
-        } else {
-            "ttynull"
-        };
+    let console = if partition_info.com3_serial_available
+        && (params.isolation_type == IsolationType::None
+            || partition_info.boot_options.confidential_debug)
+    {
+        "ttyS2,115200"
+    } else {
+        "ttynull"
+    };
     write!(cmdline, "console={console} ")?;
 
     if params.isolation_type != IsolationType::None {
@@ -274,7 +275,7 @@ fn build_kernel_command_line(
     }
 
     // If we're isolated we can't trust the host-provided cmdline
-    if can_trust_host {
+    if params.isolation_type == IsolationType::None {
         let old_cmdline = &partition_info.cmdline;
 
         // HACK: See if we should set the vmbus connection id via kernel
@@ -624,9 +625,6 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         log!("openhcl_boot: early debugging enabled");
     }
 
-    let can_trust_host =
-        p.isolation_type == IsolationType::None || static_options.confidential_debug;
-
     let boot_reftime = get_ref_time(p.isolation_type);
 
     let mut dt_storage = off_stack!(PartitionInfo, PartitionInfo::new());
@@ -666,7 +664,7 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         partition_info.vtl0_alias_map = None;
     }
 
-    if partition_info.boot_options.confidential_debug {
+    if p.isolation_type == IsolationType::None || partition_info.boot_options.confidential_debug {
         // Enable late log output if requested in the dynamic command line.
         if let Some(typ) = partition_info.boot_options.logger {
             boot_logger_init(p.isolation_type, typ);
@@ -699,14 +697,7 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
     );
 
     let mut cmdline = off_stack!(ArrayString<COMMAND_LINE_SIZE>, ArrayString::new_const());
-    build_kernel_command_line(
-        &p,
-        &mut cmdline,
-        partition_info,
-        can_trust_host,
-        sidecar.as_ref(),
-    )
-    .unwrap();
+    build_kernel_command_line(&p, &mut cmdline, partition_info, sidecar.as_ref()).unwrap();
 
     let mut fdt = off_stack!(Fdt, zeroed());
     fdt.header.len = fdt.data.len() as u32;

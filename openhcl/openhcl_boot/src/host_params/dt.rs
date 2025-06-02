@@ -506,7 +506,7 @@ impl PartitionInfo {
             storage.vtl2_pool_memory = pool;
         }
 
-        // If we can trust the host, use the provided alias map
+        // If we are not isolated, use the provided alias map
         if params.isolation_type == IsolationType::None {
             storage.vtl0_alias_map = parsed.vtl0_alias_map;
         }
