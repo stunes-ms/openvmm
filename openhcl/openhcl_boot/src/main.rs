@@ -274,7 +274,7 @@ fn build_kernel_command_line(
         write!(cmdline, "{} ", sidecar.kernel_command_line())?;
     }
 
-    // If we're isolated we can't trust the host-provided cmdline
+    // The VMBUS connection ID parameter is only used for non-isolated VMs.
     if params.isolation_type == IsolationType::None {
         let old_cmdline = &partition_info.cmdline;
 
@@ -664,15 +664,12 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         partition_info.vtl0_alias_map = None;
     }
 
-    if p.isolation_type == IsolationType::None || partition_info.boot_options.confidential_debug {
-        // Enable late log output if requested in the dynamic command line.
-        if let Some(typ) = partition_info.boot_options.logger {
-            boot_logger_init(p.isolation_type, typ);
-        } else if partition_info.com3_serial_available && cfg!(target_arch = "x86_64") {
-            // If COM3 is available and we can trust the host, enable log output even
-            // if it wasn't otherwise requested.
-            boot_logger_init(p.isolation_type, LoggerType::Serial);
-        }
+    // Enable late log output if requested in the dynamic command line.
+    if let Some(typ) = partition_info.boot_options.logger {
+        boot_logger_init(p.isolation_type, typ);
+    } else if partition_info.com3_serial_available && cfg!(target_arch = "x86_64") {
+        // If COM3 is available, enable log output even if it wasn't otherwise requested.
+        boot_logger_init(p.isolation_type, LoggerType::Serial);
     }
 
     log!("openhcl_boot: entered shim_main");
