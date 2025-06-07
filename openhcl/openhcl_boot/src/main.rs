@@ -254,6 +254,14 @@ fn build_kernel_command_line(
         )?;
     }
 
+    if can_trust_host && partition_info.boot_options.confidential_debug {
+        write!(
+            cmdline,
+            "{}=1 ",
+            underhill_confidentiality::OPENHCL_CONFIDENTIAL_DEBUG_ENV_VAR_NAME
+        )?;
+    }
+
     // Only when explicitly supported by Host.
     // TODO: Move from command line to device tree when stabilized.
     if partition_info.nvme_keepalive && !partition_info.vtl2_pool_memory.is_empty() {
@@ -581,6 +589,29 @@ fn get_ref_time(isolation: IsolationType) -> Option<u64> {
     }
 }
 
+fn get_debug_bit(isolation: IsolationType) -> bool {
+    match isolation {
+        #[cfg(target_arch = "x86_64")]
+        IsolationType::Tdx => {
+            use tdx_guest_device::protocol::TdReport;
+
+            use crate::arch::tdx::get_tdreport;
+
+            let mut report = off_stack!(PageAlign<TdReport>, zeroed());
+            match get_tdreport(&mut report.0) {
+                Ok(()) => report.0.td_info.td_info_base.attributes.debug(),
+                Err(_) => false,
+            }
+        }
+        #[cfg(target_arch = "x86_64")]
+        IsolationType::Snp => {
+            // Not implemented yet for SNP.
+            false
+        }
+        _ => false,
+    }
+}
+
 fn shim_main(shim_params_raw_offset: isize) -> ! {
     let p = shim_parameters(shim_params_raw_offset);
     if p.isolation_type == IsolationType::None {
@@ -615,8 +646,9 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         log!("openhcl_boot: early debugging enabled");
     }
 
-    let can_trust_host =
-        p.isolation_type == IsolationType::None || static_options.confidential_debug;
+    let can_trust_host = p.isolation_type == IsolationType::None
+        || static_options.confidential_debug
+        || get_debug_bit(p.isolation_type);
 
     let boot_reftime = get_ref_time(p.isolation_type);
 
