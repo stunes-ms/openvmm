@@ -633,16 +633,6 @@ fn load_image<'a, R: IgvmfilegenRegister + GuestArch + 'static>(
                 }
             };
 
-            let command_line = if loader.loader().confidential_debug() {
-                tracing::info!("enabling underhill confidential debug environment flag");
-                format!(
-                    "{command_line} {}=1",
-                    OPENHCL_CONFIDENTIAL_DEBUG_ENV_VAR_NAME
-                )
-            } else {
-                command_line.clone()
-            };
-
             let command_line = if static_command_line {
                 CommandLineType::Static(&command_line)
             } else {

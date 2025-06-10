@@ -254,7 +254,10 @@ fn build_kernel_command_line(
         )?;
     }
 
-    if can_trust_host && partition_info.boot_options.confidential_debug {
+    // Confidential debug will show up in boot_options only if included in the
+    // static command line, or if can_trust_host is true (and the dynamic command
+    // line has been parsed).
+    if can_trust_host || partition_info.boot_options.confidential_debug {
         write!(
             cmdline,
             "{}=1 ",
