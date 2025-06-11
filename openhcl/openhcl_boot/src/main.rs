@@ -73,6 +73,7 @@ fn build_kernel_command_line(
     cmdline: &mut ArrayString<COMMAND_LINE_SIZE>,
     partition_info: &PartitionInfo,
     can_trust_host: bool,
+    is_confidential_debug: bool,
     sidecar: Option<&SidecarConfig<'_>>,
 ) -> Result<(), CommandLineTooLong> {
     // For reference:
@@ -254,10 +255,7 @@ fn build_kernel_command_line(
         )?;
     }
 
-    // Confidential debug will show up in boot_options only if included in the
-    // static command line, or if can_trust_host is true (and the dynamic command
-    // line has been parsed).
-    if can_trust_host || partition_info.boot_options.confidential_debug {
+    if is_confidential_debug {
         write!(
             cmdline,
             "{}=1 ",
@@ -592,7 +590,7 @@ fn get_ref_time(isolation: IsolationType) -> Option<u64> {
     }
 }
 
-fn get_debug_bit(isolation: IsolationType) -> bool {
+fn get_hw_debug_bit(isolation: IsolationType) -> bool {
     match isolation {
         #[cfg(target_arch = "x86_64")]
         IsolationType::Tdx => {
@@ -649,9 +647,10 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         log!("openhcl_boot: early debugging enabled");
     }
 
+    let hw_debug_bit = get_hw_debug_bit(p.isolation_type);
     let can_trust_host = p.isolation_type == IsolationType::None
         || static_options.confidential_debug
-        || get_debug_bit(p.isolation_type);
+        || hw_debug_bit;
 
     let boot_reftime = get_ref_time(p.isolation_type);
 
@@ -662,6 +661,11 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
             Ok(None) => panic!("host did not provide a device tree"),
             Err(e) => panic!("unable to read device tree params {}", e),
         };
+
+    // Confidential debug will show up in boot_options only if included in the
+    // static command line, or if can_trust_host is true (so the dynamic command
+    // line has been parsed).
+    let is_confidential_debug = hw_debug_bit || partition_info.boot_options.confidential_debug;
 
     // Fill out the non-devicetree derived parts of PartitionInfo.
     if !p.isolation_type.is_hardware_isolated()
@@ -732,6 +736,7 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
         &mut cmdline,
         partition_info,
         can_trust_host,
+        is_confidential_debug,
         sidecar.as_ref(),
     )
     .unwrap();
