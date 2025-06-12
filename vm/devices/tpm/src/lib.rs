@@ -451,7 +451,11 @@ impl Tpm {
                 .map_err(TpmErrorKind::ReadNvramState)?;
 
             if let Some(blob) = existing_nvmem_blob {
-                if let Err(e) = self.tpm_engine_helper.tpm_engine.reset(Some(&blob)) {
+                let mut new_blob = blob.clone();
+                if new_blob.len() < 32768 {
+                    new_blob.resize(32768, 0);
+                }
+                if let Err(e) = self.tpm_engine_helper.tpm_engine.reset(Some(&new_blob)) {
                     if let ms_tpm_20_ref::Error::NvMem(NvError::MismatchedBlobSize) = e {
                         self.logger
                             .log_event_and_flush(TpmLogEvent::InvalidState)
