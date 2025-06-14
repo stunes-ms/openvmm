@@ -39,57 +39,58 @@ async fn boot_alias_map(config: PetriVmConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Basic boot tests with TPM enabled.
-#[vmm_test(
-    openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
-    openhcl_uefi_x64(vhd(ubuntu_2204_server_x64))
-)]
-async fn boot_with_tpm(config: PetriVmConfig) -> anyhow::Result<()> {
-    let os_flavor = config.os_flavor();
-    let config = config.with_tpm().with_tpm_state_persistence();
-
-    let (vm, agent) = match os_flavor {
-        OsFlavor::Windows => {
-            // TODO: Add in-guest TPM tests for Windows as we currently
-            // do have an easy way to interact with TPM without a private
-            // or custom tool.
-            config.run().await?
-        }
-        OsFlavor::Linux => {
-            // First boot - AK cert request will be served by GED
-            let mut vm = config.run_with_lazy_pipette().await?;
-            // Workaround to https://github.com/microsoft/openvmm/issues/379
-            assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
-
-            // Second boot - Ak cert request will be bypassed by GED
-            vm.reset().await?;
-            let agent = vm.wait_for_agent().await?;
-            vm.wait_for_successful_boot_event().await?;
-
-            // Use the python script to read AK cert from TPM nv index
-            // and verify that the AK cert preserves across boot.
-            // TODO: Replace the script with tpm2-tools
-            const TEST_FILE: &str = "tpm.py";
-            const TEST_CONTENT: &str = include_str!("../../test_data/tpm.py");
-
-            agent.write_file(TEST_FILE, TEST_CONTENT.as_bytes()).await?;
-            assert_eq!(agent.read_file(TEST_FILE).await?, TEST_CONTENT.as_bytes());
-
-            let sh = agent.unix_shell();
-            let output = cmd!(sh, "python3 tpm.py").read().await?;
-
-            // Check if the content is as expected
-            assert!(output.contains("succeeded"));
-
-            (vm, agent)
-        }
-        _ => unreachable!(),
-    };
-
-    agent.power_off().await?;
-    assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
-    Ok(())
-}
+// TODO: Test disabled because AK cert renewal with non-hardware isolation is
+// disabled.
+//
+// /// Basic boot tests with TPM enabled. #[vmm_test(
+// openhcl_uefi_x64(vhd(windows_datacenter_core_2022_x64)),
+//     openhcl_uefi_x64(vhd(ubuntu_2204_server_x64)) )] async fn
+//     boot_with_tpm(config: PetriVmConfig) -> anyhow::Result<()> { let
+// os_flavor = config.os_flavor(); let config =
+// config.with_tpm().with_tpm_state_persistence();
+//
+//     let (vm, agent) = match os_flavor {
+//         OsFlavor::Windows => {
+//             // TODO: Add in-guest TPM tests for Windows as we currently
+//             // do have an easy way to interact with TPM without a private
+//             // or custom tool.
+//             config.run().await?
+//         }
+//         OsFlavor::Linux => {
+//             // First boot - AK cert request will be served by GED
+//             let mut vm = config.run_with_lazy_pipette().await?;
+//             // Workaround to https://github.com/microsoft/openvmm/issues/379
+//             assert_eq!(vm.wait_for_halt().await?, HaltReason::Reset);
+//
+//             // Second boot - Ak cert request will be bypassed by GED
+//             vm.reset().await?;
+//             let agent = vm.wait_for_agent().await?;
+//             vm.wait_for_successful_boot_event().await?;
+//
+//             // Use the python script to read AK cert from TPM nv index
+//             // and verify that the AK cert preserves across boot.
+//             // TODO: Replace the script with tpm2-tools
+//             const TEST_FILE: &str = "tpm.py";
+//             const TEST_CONTENT: &str = include_str!("../../test_data/tpm.py");
+//
+//             agent.write_file(TEST_FILE, TEST_CONTENT.as_bytes()).await?;
+//             assert_eq!(agent.read_file(TEST_FILE).await?, TEST_CONTENT.as_bytes());
+//
+//             let sh = agent.unix_shell();
+//             let output = cmd!(sh, "python3 tpm.py").read().await?;
+//
+//             // Check if the content is as expected
+//             assert!(output.contains("succeeded"));
+//
+//             (vm, agent)
+//         }
+//         _ => unreachable!(),
+//     };
+//
+//     agent.power_off().await?;
+//     assert_eq!(vm.wait_for_teardown().await?, HaltReason::PowerOff);
+//     Ok(())
+// }
 
 /// Basic VBS boot test.
 #[vmm_test(
