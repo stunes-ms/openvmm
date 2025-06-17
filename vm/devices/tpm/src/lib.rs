@@ -12,6 +12,7 @@
 
 pub mod ak_cert;
 pub mod logger;
+mod recover;
 pub mod resolver;
 mod tpm20proto;
 mod tpm_helper;
@@ -89,6 +90,7 @@ const TPM_GUEST_SECRET_HANDLE: ReservedHandle = ReservedHandle::new(TPM20_HT_PER
 
 // Reserved handles for Microsoft (Component OEM) ranges from 0x01c101c0 to 0x01c101ff
 const TPM_NV_INDEX_AIK_CERT: u32 = NV_INDEX_RANGE_BASE_TCG_ASSIGNED + 0x000101d0;
+const TPM_NV_INDEX_MITIGATED: u32 = NV_INDEX_RANGE_BASE_TCG_ASSIGNED + 0x000101d2;
 const TPM_NV_INDEX_ATTESTATION_REPORT: u32 = NV_INDEX_RANGE_BASE_PLATFORM_MANUFACTURER + 0x1;
 const TPM_NV_INDEX_GUEST_ATTESTATION_INPUT: u32 = NV_INDEX_RANGE_BASE_PLATFORM_MANUFACTURER + 0x2;
 
@@ -447,6 +449,7 @@ impl Tpm {
     async fn on_first_boot(&mut self, guest_secret_key: Option<Vec<u8>>) -> Result<(), TpmError> {
         use ms_tpm_20_ref::NvError;
         let mut force_ak_regen = false;
+        let fixup_16k_ak_cert;
 
         // Check whether or not we need to pave-over the blank TPM with our
         // existing nvmem state.
@@ -456,7 +459,13 @@ impl Tpm {
                 .await
                 .map_err(TpmErrorKind::ReadNvramState)?;
 
-            if let Some(blob) = existing_nvmem_blob {
+            if let Some(mut blob) = existing_nvmem_blob {
+                // Previous versions before this code had a bug where sizes
+                // smaller than 32K would be reported as 32K. Fixup the blob so
+                // that the TPM nvram is consistent - this code can be removed
+                // once the fix for reporting the NVRAM size correctly is
+                // everywhere.
+                recover::recover_blob(&mut blob);
                 if let Err(e) = self.tpm_engine_helper.tpm_engine.reset(Some(&blob)) {
                     if let ms_tpm_20_ref::Error::NvMem(NvError::MismatchedBlobSize) = e {
                         self.logger
@@ -473,6 +482,12 @@ impl Tpm {
                 force_ak_regen = self.refresh_tpm_seeds
                     || blob.len() != LEGACY_VTPM_SIZE
                     || is_confidential_vm();
+
+                // If this is a small vTPM blob, potentially fixup the AK cert.
+                fixup_16k_ak_cert = blob.len() == LEGACY_VTPM_SIZE;
+            } else {
+                // No fixup is required, because there is no existing NVRAM blob.
+                fixup_16k_ak_cert = false;
             }
         }
 
@@ -564,11 +579,16 @@ impl Tpm {
                     auth_value,
                     !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
                     matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)),
+                    fixup_16k_ak_cert,
                 )
                 .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
 
             // Initialize `TPM_NV_INDEX_AIK_CERT` and `TPM_NV_INDEX_ATTESTATION_REPORT`
-            self.renew_ak_cert()?;
+            //
+            // Only renew AK cert if hardware isolated.
+            if matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)) {
+                self.renew_ak_cert()?;
+            }
         }
 
         // If guest secret key is passed in, import the key into TPM.
@@ -1239,10 +1259,7 @@ impl MmioIntercept for Tpm {
                         "executing guest tpm cmd",
                     );
 
-                    if matches!(
-                        self.ak_cert_type,
-                        TpmAkCertType::Trusted(_) | TpmAkCertType::HwAttested(_)
-                    ) {
+                    if matches!(self.ak_cert_type, TpmAkCertType::HwAttested(_)) {
                         if let Some(CommandCodeEnum::NV_Read) = cmd_header {
                             self.refresh_device_attestation_data_on_nv_read()
                         }
