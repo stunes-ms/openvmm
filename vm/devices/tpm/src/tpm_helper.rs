@@ -549,7 +549,7 @@ impl TpmEngineHelper {
             // VM has a small-vTPM mitigation marker. Don't touch anything, but
             // log whether the AK cert exists, as that previous write might have
             // failed.
-            let mut output = [0u8; MAX_NV_INDEX_SIZE as usize];
+            let mut output = vec![0u8; MAX_NV_INDEX_SIZE as usize];
             let r = self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output);
             tracing::warn!("VM has 16k vTPM mitigation marker; not resizing AKCert index");
             match r {
@@ -564,7 +564,49 @@ impl TpmEngineHelper {
                     let nv_bits = TpmaNvBits::from(res.nv_public.nv_public.attributes.0.get());
                     let size = res.nv_public.nv_public.data_size.get();
 
-                    tracing::info!(?nv_bits, size, "AKCert index exists")
+                    tracing::info!(?nv_bits, size, "AKCert index exists");
+
+                    if nv_bits.nv_platformcreate() {
+                        tracing::info!("AKCert index is platform owned; restoring owner auth");
+                        output.resize(size as usize, 0);
+
+                        self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
+                            .map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_UndefineSpace,
+                                    auth_handle: Some(TPM20_RH_PLATFORM),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
+
+                        self.nv_define_space(
+                            TPM20_RH_OWNER,
+                            0,
+                            TPM_NV_INDEX_AIK_CERT,
+                            output.len() as u16,
+                        )
+                        .map_err(|error| {
+                            TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_DefineSpace,
+                                    auth_handle: Some(TPM20_RH_OWNER),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            }
+                        })?;
+
+                        self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &output)
+                            .map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_Write,
+                                    auth_handle: Some(TPM20_RH_OWNER),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
+                    }
                 }
                 Ok(NvIndexState::Uninitialized) => {
                     tracing::warn!("AKCert index uninitialized with mitigation marker")
@@ -636,11 +678,11 @@ impl TpmEngineHelper {
                 );
 
                 let result = self
-                    .nv_define_space(TPM20_RH_PLATFORM, auth_value, TPM_NV_INDEX_AIK_CERT, size)
+                    .nv_define_space(TPM20_RH_OWNER, 0, TPM_NV_INDEX_AIK_CERT, size)
                     .map_err(|error| TpmHelperError::TpmCommandError {
                         command_debug_info: CommandDebugInfo {
                             command_code: CommandCodeEnum::NV_DefineSpace,
-                            auth_handle: Some(TPM20_RH_PLATFORM),
+                            auth_handle: Some(TPM20_RH_OWNER),
                             nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                         },
                         error,
@@ -668,7 +710,17 @@ impl TpmEngineHelper {
                             // boot-time AK cert request fails.
                             tracing::info!("Preserve previous AK cert across boot");
 
-                            self.write_to_nv_index(auth_value, TPM_NV_INDEX_AIK_CERT, &cert)?;
+                            /* TODO: use nv_write instead */
+                            self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert)
+                                .map_err(|error| TpmHelperError::TpmCommandError {
+                                    command_debug_info: CommandDebugInfo {
+                                        command_code: CommandCodeEnum::NV_Write,
+                                        auth_handle: Some(TPM20_RH_OWNER),
+                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                    },
+                                    error,
+                                })?;
+                            //self.write_to_nv_index(None, TPM_NV_INDEX_AIK_CERT, &cert)?;
                         }
                     }
                 }
@@ -1436,12 +1488,20 @@ impl TpmEngineHelper {
         let session_tag = SessionTagEnum::Sessions;
 
         // Use password-based authorization and allow owner to read
-        let attributes = TpmaNvBits::new()
-            .with_nv_authread(true)
-            .with_nv_authwrite(true)
-            .with_nv_ownerread(true)
-            .with_nv_platformcreate(true)
-            .with_nv_no_da(true);
+        let attributes = if auth_handle == TPM20_RH_PLATFORM {
+            TpmaNvBits::new()
+                .with_nv_authread(true)
+                .with_nv_authwrite(true)
+                .with_nv_ownerread(true)
+                .with_nv_platformcreate(true)
+                .with_nv_no_da(true)
+        } else {
+            TpmaNvBits::new()
+                .with_nv_ownerread(true)
+                .with_nv_ownerwrite(true)
+                .with_nv_authread(true)
+                .with_nv_authwrite(true)
+        };
 
         let public_info = TpmsNvPublic::new(
             nv_index,
@@ -2210,8 +2270,9 @@ mod tests {
             assert_eq!(&ak_cert_output, input_with_padding.as_slice());
 
             // Write to ak cert nv
-            let result = tpm_engine_helper.write_to_nv_index(
-                AUTH_VALUE,
+            let result = tpm_engine_helper.nv_write(
+                TPM20_RH_OWNER,
+                None,
                 TPM_NV_INDEX_AIK_CERT,
                 &AK_CERT_INPUT_1024,
             );
