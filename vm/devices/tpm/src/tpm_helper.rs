@@ -551,7 +551,7 @@ impl TpmEngineHelper {
             // failed.
             let mut output = vec![0u8; MAX_NV_INDEX_SIZE as usize];
             let r = self.read_from_nv_index(TPM_NV_INDEX_AIK_CERT, &mut output);
-            tracing::warn!("VM has 16k vTPM mitigation marker; not resizing AKCert index");
+            tracing::warn!("VM has 16k vTPM mitigation marker");
             match r {
                 Err(e) => tracing::error!(
                     err = &e as &dyn std::error::Error,
@@ -677,12 +677,18 @@ impl TpmEngineHelper {
                     "allocate nv index for previous platform AK cert"
                 );
 
+                let (handle, auth) = if will_mitigate_cert {
+                    (TPM20_RH_OWNER, None)
+                } else {
+                    (TPM20_RH_PLATFORM, Some(auth_value))
+                };
+
                 let result = self
-                    .nv_define_space(TPM20_RH_OWNER, 0, TPM_NV_INDEX_AIK_CERT, size)
+                    .nv_define_space(handle, auth.unwrap_or(0), TPM_NV_INDEX_AIK_CERT, size)
                     .map_err(|error| TpmHelperError::TpmCommandError {
                         command_debug_info: CommandDebugInfo {
                             command_code: CommandCodeEnum::NV_DefineSpace,
-                            auth_handle: Some(TPM20_RH_OWNER),
+                            auth_handle: Some(handle),
                             nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                         },
                         error,
@@ -710,17 +716,15 @@ impl TpmEngineHelper {
                             // boot-time AK cert request fails.
                             tracing::info!("Preserve previous AK cert across boot");
 
-                            /* TODO: use nv_write instead */
-                            self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert)
+                            self.nv_write(handle, auth, TPM_NV_INDEX_AIK_CERT, &cert)
                                 .map_err(|error| TpmHelperError::TpmCommandError {
                                     command_debug_info: CommandDebugInfo {
                                         command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(TPM20_RH_OWNER),
+                                        auth_handle: Some(handle),
                                         nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                                     },
                                     error,
                                 })?;
-                            //self.write_to_nv_index(None, TPM_NV_INDEX_AIK_CERT, &cert)?;
                         }
                     }
                 }
