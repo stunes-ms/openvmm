@@ -568,44 +568,35 @@ impl TpmEngineHelper {
 
                     if nv_bits.nv_platformcreate() {
                         tracing::info!("AKCert index is platform owned; restoring owner auth");
-                        output.resize(size as usize, 0);
-
-                        self.nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
-                            .map_err(|error| TpmHelperError::TpmCommandError {
-                                command_debug_info: CommandDebugInfo {
-                                    command_code: CommandCodeEnum::NV_UndefineSpace,
-                                    auth_handle: Some(TPM20_RH_PLATFORM),
-                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                },
-                                error,
+                        let existing_cert = self.take_existing_ak_cert()?;
+                        if let AkCertType::PlatformOwned(cert) = existing_cert {
+                            self.nv_define_space(
+                                TPM20_RH_OWNER,
+                                0,
+                                TPM_NV_INDEX_AIK_CERT,
+                                cert.len() as u16,
+                            )
+                            .map_err(|error| {
+                                TpmHelperError::TpmCommandError {
+                                    command_debug_info: CommandDebugInfo {
+                                        command_code: CommandCodeEnum::NV_DefineSpace,
+                                        auth_handle: Some(TPM20_RH_OWNER),
+                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                    },
+                                    error,
+                                }
                             })?;
 
-                        self.nv_define_space(
-                            TPM20_RH_OWNER,
-                            0,
-                            TPM_NV_INDEX_AIK_CERT,
-                            output.len() as u16,
-                        )
-                        .map_err(|error| {
-                            TpmHelperError::TpmCommandError {
-                                command_debug_info: CommandDebugInfo {
-                                    command_code: CommandCodeEnum::NV_DefineSpace,
-                                    auth_handle: Some(TPM20_RH_OWNER),
-                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                },
-                                error,
-                            }
-                        })?;
-
-                        self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &output)
-                            .map_err(|error| TpmHelperError::TpmCommandError {
-                                command_debug_info: CommandDebugInfo {
-                                    command_code: CommandCodeEnum::NV_Write,
-                                    auth_handle: Some(TPM20_RH_OWNER),
-                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                },
-                                error,
-                            })?;
+                            self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert)
+                                .map_err(|error| TpmHelperError::TpmCommandError {
+                                    command_debug_info: CommandDebugInfo {
+                                        command_code: CommandCodeEnum::NV_Write,
+                                        auth_handle: Some(TPM20_RH_OWNER),
+                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                    },
+                                    error,
+                                })?;
+                        }
                     }
                 }
                 Ok(NvIndexState::Uninitialized) => {
@@ -677,10 +668,14 @@ impl TpmEngineHelper {
                     "allocate nv index for previous platform AK cert"
                 );
 
-                let (handle, auth) = if will_mitigate_cert {
-                    (TPM20_RH_OWNER, None)
+                let (handle, auth, write_auth_handle) = if will_mitigate_cert {
+                    (TPM20_RH_OWNER, None, TPM20_RH_OWNER)
                 } else {
-                    (TPM20_RH_PLATFORM, Some(auth_value))
+                    (
+                        TPM20_RH_PLATFORM,
+                        Some(auth_value),
+                        ReservedHandle(TPM_NV_INDEX_AIK_CERT.into()),
+                    )
                 };
 
                 let result = self
@@ -716,14 +711,8 @@ impl TpmEngineHelper {
                             // boot-time AK cert request fails.
                             tracing::info!("Preserve previous AK cert across boot");
 
-                            self.nv_write(
-                                ReservedHandle(TPM_NV_INDEX_AIK_CERT.into()),
-                                auth,
-                                TPM_NV_INDEX_AIK_CERT,
-                                &cert,
-                            )
-                            .map_err(|error| {
-                                TpmHelperError::TpmCommandError {
+                            self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert)
+                                .map_err(|error| TpmHelperError::TpmCommandError {
                                     command_debug_info: CommandDebugInfo {
                                         command_code: CommandCodeEnum::NV_Write,
                                         auth_handle: Some(ReservedHandle(
@@ -732,8 +721,7 @@ impl TpmEngineHelper {
                                         nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                                     },
                                     error,
-                                }
-                            })?;
+                                })?;
                         }
                     }
                 }
