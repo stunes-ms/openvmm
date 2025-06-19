@@ -2274,7 +2274,7 @@ mod tests {
             assert_eq!(&ak_cert_output, input_with_padding.as_slice());
 
             // Write to ak cert nv
-            let result: Result<(), TpmCommandError> = tpm_engine_helper.write_to_nv_index(
+            let result = tpm_engine_helper.write_to_nv_index(
                 AUTH_VALUE,
                 TPM_NV_INDEX_AIK_CERT,
                 &AK_CERT_INPUT_1024,
