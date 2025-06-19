@@ -716,15 +716,24 @@ impl TpmEngineHelper {
                             // boot-time AK cert request fails.
                             tracing::info!("Preserve previous AK cert across boot");
 
-                            self.nv_write(handle, auth, TPM_NV_INDEX_AIK_CERT, &cert)
-                                .map_err(|error| TpmHelperError::TpmCommandError {
+                            self.nv_write(
+                                ReservedHandle(TPM_NV_INDEX_AIK_CERT.into()),
+                                auth,
+                                TPM_NV_INDEX_AIK_CERT,
+                                &cert,
+                            )
+                            .map_err(|error| {
+                                TpmHelperError::TpmCommandError {
                                     command_debug_info: CommandDebugInfo {
                                         command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(handle),
+                                        auth_handle: Some(ReservedHandle(
+                                            TPM_NV_INDEX_AIK_CERT.into(),
+                                        )),
                                         nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                                     },
                                     error,
-                                })?;
+                                }
+                            })?;
                         }
                     }
                 }
