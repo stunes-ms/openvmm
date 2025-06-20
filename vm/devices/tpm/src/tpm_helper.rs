@@ -3613,4 +3613,53 @@ mod tests {
             panic!()
         }
     }
+
+    #[test]
+    fn test_restore_owner_defined() {
+        const AK_CERT_INPUT_512: [u8; 512] = [7u8; 512];
+
+        let mut tpm_engine_helper = create_tpm_engine_helper();
+        restart_tpm_engine(&mut tpm_engine_helper, false, true);
+
+        // Test allocating a platform-defined AKCert index and mitigating it back to owner-defined.
+
+        let result =
+            tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, false, true, false);
+        assert!(result.is_ok());
+
+        let result = tpm_engine_helper
+            .find_nv_index(TPM_NV_INDEX_AIK_CERT)
+            .expect("find_nv_index should succeed")
+            .expect("AKCert NV index present");
+        let nv_bits = TpmaNvBits::from(result.nv_public.nv_public.attributes.0.get());
+        assert!(nv_bits.nv_platformcreate());
+
+        let result = tpm_engine_helper.write_to_nv_index(
+            AUTH_VALUE,
+            TPM_NV_INDEX_AIK_CERT,
+            &AK_CERT_INPUT_512,
+        );
+        assert!(result.is_ok());
+
+        let result = tpm_engine_helper.nv_define_space(
+            TPM20_RH_PLATFORM,
+            AUTH_VALUE,
+            TPM_NV_INDEX_MITIGATED,
+            1,
+        );
+        assert!(result.is_ok());
+
+        // TPM has a platform-defined AKCert index and a mitigation marker. This should restore
+        // the owner-defined AKCert index.
+        let result =
+            tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, false, true, true);
+        assert!(result.is_ok());
+
+        let result = tpm_engine_helper
+            .find_nv_index(TPM_NV_INDEX_AIK_CERT)
+            .expect("find_nv_index should succeed")
+            .expect("AKCert NV index present");
+        let nv_bits = TpmaNvBits::from(result.nv_public.nv_public.attributes.0.get());
+        assert!(!nv_bits.nv_platformcreate());
+    }
 }
