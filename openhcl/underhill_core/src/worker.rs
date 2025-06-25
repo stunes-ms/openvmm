@@ -1603,6 +1603,8 @@ async fn new_underhill_vm(
         secure_boot: dps.general.secure_boot_enabled,
         tpm_enabled: dps.general.tpm_enabled,
         tpm_persisted: !dps.general.suppress_attestation.unwrap_or(false),
+        // Configuring the device filter is conditional on with_vmbus_relay below.
+        azure_device_filter: with_vmbus_relay,
         vm_unique_id: dps.general.bios_guid.to_string(),
     };
 

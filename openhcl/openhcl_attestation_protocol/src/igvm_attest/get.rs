@@ -345,6 +345,8 @@ pub mod runtime_claims {
         pub tpm_enabled: bool,
         /// Whether the TPM states is persisted
         pub tpm_persisted: bool,
+        /// Whether Azure-specific devices are allowed through the device filter
+        pub azure_device_filter: bool,
         /// VM id
         #[serde(rename = "vmUniqueId")]
         pub vm_unique_id: String,
