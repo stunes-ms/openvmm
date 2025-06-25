@@ -696,7 +696,8 @@ fn shim_main(shim_params_raw_offset: isize) -> ! {
     // Confidential debug will show up in boot_options only if included in the
     // static command line, or if can_trust_host is true (so the dynamic command
     // line has been parsed).
-    let is_confidential_debug = hw_debug_bit || partition_info.boot_options.confidential_debug;
+    let is_confidential_debug = (can_trust_host && p.isolation_type != IsolationType::None)
+        || partition_info.boot_options.confidential_debug;
 
     // Fill out the non-devicetree derived parts of PartitionInfo.
     if !p.isolation_type.is_hardware_isolated()
