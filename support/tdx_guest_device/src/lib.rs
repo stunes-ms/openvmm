@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 //! The crate includes the abstraction layer of Linux TDX Guest APIs.
-
+#![cfg(target_os = "linux")]
 // UNSAFETY: unsafe needed to make ioctl calls.
 #![expect(unsafe_code)]
 
