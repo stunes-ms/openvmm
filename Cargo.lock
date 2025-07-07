@@ -4799,7 +4799,6 @@ dependencies = [
  "open_enum",
  "serde",
  "serde_json",
- "sev_guest_device",
  "x86defs",
  "zerocopy 0.8.24",
 ]
@@ -6383,7 +6382,6 @@ dependencies = [
 name = "sev_guest_device"
 version = "0.0.0"
 dependencies = [
- "bitfield-struct 0.10.1",
  "nix 0.27.1",
  "static_assertions",
  "thiserror 2.0.12",
