@@ -27,11 +27,11 @@ pub enum Error {
 
 /// Ioctl struct defined by Linux.
 #[repr(C)]
-pub struct TdxReportReq {
+struct TdxReportReq {
     /// Report data to be included in the report.
-    pub report_data: [u8; TDX_REPORT_DATA_SIZE],
+    report_data: [u8; TDX_REPORT_DATA_SIZE],
     /// The output report.
-    pub td_report: TdReport,
+    td_report: TdReport,
 }
 
 nix::ioctl_readwrite!(

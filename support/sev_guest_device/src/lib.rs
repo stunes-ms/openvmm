@@ -42,25 +42,25 @@ pub enum Error {
 
 /// Ioctl struct defined by Linux.
 #[repr(C)]
-pub struct SnpGuestRequestIoctl {
+struct SnpGuestRequestIoctl {
     /// Message version number (must be non-zero).
-    pub msg_version: u32,
+    msg_version: u32,
     /// Request struct address.
-    pub req_data: u64,
+    req_data: u64,
     /// Response struct address.
-    pub resp_data: u64,
+    resp_data: u64,
     /// VMM error code.
-    pub exitinfo: VmmErrorCode,
+    exitinfo: VmmErrorCode,
 }
 
 /// VMM error code.
 #[repr(C)]
 #[derive(FromZeros, Immutable, KnownLayout)]
-pub struct VmmErrorCode {
+struct VmmErrorCode {
     /// Firmware error
-    pub fw_error: u32,
+    fw_error: u32,
     /// VMM error
-    pub vmm_error: u32,
+    vmm_error: u32,
 }
 
 nix::ioctl_readwrite!(
@@ -82,11 +82,11 @@ nix::ioctl_readwrite!(
 /// Response structure for the `SNP_GET_REPORT` ioctl.
 #[repr(C)]
 #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
-pub struct SnpReportIoctlResp {
+struct SnpReportIoctlResp {
     /// SNP report as defined by the SEV-SNP ABI spec
-    pub report: SnpReportResp,
+    report: SnpReportResp,
     /// Reserved
-    pub _reserved: [u8; LINUX_SNP_REPORT_RESP_DATA_SIZE - SNP_REPORT_RESP_DATA_SIZE],
+    _reserved: [u8; LINUX_SNP_REPORT_RESP_DATA_SIZE - SNP_REPORT_RESP_DATA_SIZE],
 }
 
 static_assertions::const_assert_eq!(
