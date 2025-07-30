@@ -3698,6 +3698,23 @@ mod tests {
     async fn test_fix_corrupted_vmgs() {
         // Take a corrupt TPM NVRAM and go through OpenHCL TPM init. This should uncorrupt
         // the vTPM state and resize the AKCert index to fit its contents.
+
+        // To generate a corrupted vTpmState blob:
+        // 1. Create a test VM with a VMGS file with a 16 kB vTPM blob
+        // 2. (Depending on how the vTPM blob was created, the AKCert NVRAM index may not
+        //     contain an actual certificate. If not, create some sort of cert and load it
+        //     into that index. Do the following steps in the test VM. Note that it should
+        //     be a DER-encoded X.509 certificate.)
+        //   a. openssl req -x509 -newkey rsa:4096 -keyout key.der -out cert.der -outform DER -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
+        //   b. tpm2_nvwrite -C o -i cert.der 0x1c101d0
+        // 3. Boot the VM with a version of OpenHCL that does not include PR 1452.
+        // 4. In the guest, fill up the TPM NVRAM space:
+        //   a. tpm2_nvdefine -s 2048 0x1000001
+        //   b. tpm2_nvdefine -s 2048 0x1000002
+        //   c. (repeat until the VM crashes)
+        // 5. Extract the TPM state from the VMGS file:
+        //   vmgstool dump -f test.vmgs -i 3 --raw-stdout > vTpmState-corrupt.blob
+
         let tpm_state_blob = include_bytes!("../test_data/vTpmState-corrupt.blob");
         let tpm_state_vec = tpm_state_blob.to_vec();
         let mut store = EphemeralNonVolatileStore::new_boxed();
