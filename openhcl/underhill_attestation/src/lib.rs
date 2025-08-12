@@ -926,7 +926,7 @@ async fn get_derived_keys(
                     [..gsp_response.decrypted_gsp[egress_idx].length as usize]
                     .to_vec();
                 key_protector_settings.should_write_kp = false;
-                decrypt_egress_key = Some(encrypt_egress_key.clone());
+                decrypt_egress_key = Some(encrypt_egress_key);
             }
         }
     }
