@@ -207,7 +207,7 @@ impl KeyProtectorExt for KeyProtector {
             // Any existing egress key can be used to decrypt the VMGS but must not be used to
             // re-encrypt the VMGS, as its value can be controlled by the host.
             let dek_buffer = self.dek[egress_idx].dek_buffer;
-            let old_egress_key = if let Some(ref unwrapping_key) = des_key {
+            let old_egress_key = if let Some(unwrapping_key) = &des_key {
                 // The DEK buffer should contain an AES-wrapped key.
                 crypto::aes_key_unwrap_with_padding(
                     unwrapping_key,
