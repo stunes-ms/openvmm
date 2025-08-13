@@ -333,7 +333,7 @@ impl TpmEngineHelper {
                         ak_handle: TPM_AZURE_AIK_HANDLE.0.get(),
                         error,
                     })
-                    .and_then(|ak_pub| Ok((ak_pub, actual_attributes == expected_attributes)));
+                    .map(|ak_pub| (ak_pub, actual_attributes == expected_attributes));
             }
         }
 
