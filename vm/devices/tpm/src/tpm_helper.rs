@@ -340,7 +340,7 @@ impl TpmEngineHelper {
         let in_public = ak_pub_template().map_err(TpmHelperError::CreateAkPubTemplateFailed)?;
 
         self.create_key_object(in_public, Some(TPM_AZURE_AIK_HANDLE))
-            .and_then(|res| Ok((res, true)))
+            .map(|res| (res, true))
     }
 
     /// Create Windows-style Endorsement key (EK) based on the template from the TPM specification. Note that
