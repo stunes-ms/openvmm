@@ -6333,6 +6333,7 @@ dependencies = [
  "tpm_resources",
  "tracelimit",
  "tracing",
+ "underhill_confidentiality",
  "vm_resource",
  "vmcore",
  "zerocopy",
