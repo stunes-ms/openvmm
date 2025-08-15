@@ -6321,6 +6321,7 @@ dependencies = [
  "bitfield-struct",
  "chipset_device",
  "chipset_device_resources",
+ "cvm_tracing",
  "getrandom",
  "guestmem",
  "inspect",

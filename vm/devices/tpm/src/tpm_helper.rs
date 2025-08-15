@@ -42,6 +42,7 @@ use crate::TPM_NV_INDEX_AIK_CERT;
 use crate::TPM_NV_INDEX_ATTESTATION_REPORT;
 use crate::TPM_NV_INDEX_MITIGATED;
 use crate::TPM_RSA_SRK_HANDLE;
+use cvm_tracing::CVM_ALLOWED;
 use inspect::InspectMut;
 use ms_tpm_20_ref::MsTpm20RefPlatform;
 use thiserror::Error;

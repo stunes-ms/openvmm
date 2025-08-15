@@ -28,6 +28,7 @@ use chipset_device::mmio::MmioIntercept;
 use chipset_device::pio::PortIoIntercept;
 use chipset_device::poll_device::PollDevice;
 use chipset_device::ChipsetDevice;
+use cvm_tracing::CVM_ALLOWED;
 use guestmem::GuestMemory;
 use inspect::Inspect;
 use inspect::InspectMut;
