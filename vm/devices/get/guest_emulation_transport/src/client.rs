@@ -348,9 +348,11 @@ impl GuestEmulationTransportClient {
         let mut buffer = [0; get_protocol::GSP_CLEARTEXT_MAX as usize * 2];
         getrandom::fill(&mut buffer).expect("rng failure");
 
-        tracing::info!(CVM_ALLOWED,
+        tracing::info!(
+            CVM_ALLOWED,
             op_type = "BeginGspCallback",
-            "Getting guest state protection data");
+            "Getting guest state protection data"
+        );
 
         let gsp_request = get_protocol::GuestStateProtectionRequest::new(
             buffer,
@@ -363,9 +365,11 @@ impl GuestEmulationTransportClient {
             .call(msg::Msg::GuestStateProtection, Box::new(gsp_request))
             .await;
 
-        tracing::info!(CVM_ALLOWED,
+        tracing::info!(
+            CVM_ALLOWED,
             op_type = "GspCallback",
-            "Got guest state protection data");
+            "Got guest state protection data"
+        );
 
         crate::api::GuestStateProtection {
             encrypted_gsp: response.encrypted_gsp,

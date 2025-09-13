@@ -918,7 +918,11 @@ async fn get_derived_keys(
 
         derived_keys.ingress = derived_keys_by_id.ingress;
 
-        tracing::info!(CVM_ALLOWED, op_type = "ConvertEncryptionType", "Converting GSP method.");
+        tracing::info!(
+            CVM_ALLOWED,
+            op_type = "ConvertEncryptionType",
+            "Converting GSP method."
+        );
     }
 
     let egress_seed;

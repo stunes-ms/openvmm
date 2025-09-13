@@ -570,7 +570,8 @@ impl Tpm {
             // Initialize `TpmKeys`.
             // The procedure also generates randomized AK based on the TPM seed
             // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
-            tracing::info!(CVM_ALLOWED,
+            tracing::info!(
+                CVM_ALLOWED,
                 op_type = "VtpmKeysProvision",
                 key_type = "AkPub",
                 bios_guid = self.bios_guid,
@@ -580,7 +581,8 @@ impl Tpm {
                 .tpm_engine_helper
                 .create_ak_pub(force_ak_regen)
                 .map_err(|e| {
-                    tracing::error!(CVM_ALLOWED,
+                    tracing::error!(
+                        CVM_ALLOWED,
                         op_type = "VtpmKeysProvision",
                         key_type = "AkPub",
                         bios_guid = self.bios_guid,
@@ -595,40 +597,42 @@ impl Tpm {
             let mut ak_pub_hasher = openssl::sha::Sha256::new();
             ak_pub_hasher.update(&ak_pub.modulus);
             let ak_pub_hash = ak_pub_hasher.finish();
-            self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD
-                .encode(ak_pub_hash);
+            self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ak_pub_hash);
 
-            tracing::info!(CVM_ALLOWED,
+            tracing::info!(
+                CVM_ALLOWED,
                 op_type = "VtpmKeysProvision",
                 key_type = "AkPub",
                 bios_guid = self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
-                "Created AKPub key");
+                "Created AKPub key"
+            );
 
-            tracing::info!(CVM_ALLOWED,
+            tracing::info!(
+                CVM_ALLOWED,
                 op_type = "VtpmKeysProvision",
                 key_type = "EkPub",
                 "Creating EKPub key"
             );
-            let ek_pub = self
-                .tpm_engine_helper
-                .create_ek_pub()
-                .map_err(|e| {
-                    tracing::error!(CVM_ALLOWED,
-                        op_type = "VtpmKeysProvision",
-                        key_type = "EkPub",
-                        success = false,
-                        err = &e as &dyn std::error::Error,
-                        "Error creating AKPub key"
-                    );
-                    TpmErrorKind::CreateEkPublic(e)
+            let ek_pub = self.tpm_engine_helper.create_ek_pub().map_err(|e| {
+                tracing::error!(
+                    CVM_ALLOWED,
+                    op_type = "VtpmKeysProvision",
+                    key_type = "EkPub",
+                    success = false,
+                    err = &e as &dyn std::error::Error,
+                    "Error creating AKPub key"
+                );
+                TpmErrorKind::CreateEkPublic(e)
             })?;
-            tracing::info!(CVM_ALLOWED,
+            tracing::info!(
+                CVM_ALLOWED,
                 op_type = "VtpmKeysProvision",
                 key_type = "EkPub",
                 success = true,
-                "Created EKPub key");
+                "Created EKPub key"
+            );
 
             self.keys = Some(TpmKeys { ak_pub, ek_pub });
             tracing::info!(
