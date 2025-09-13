@@ -606,13 +606,16 @@ impl TpmEngineHelper {
                                 }
                             })?;
 
-                            let res = self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert);
-                            tracing::info!(CVM_ALLOWED,
+                            let res =
+                                self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert);
+                            tracing::info!(
+                                CVM_ALLOWED,
                                 op_type = "NvWrite",
                                 nv_index = TPM_NV_INDEX_AIK_CERT,
                                 data_size = cert.len(),
                                 success = res.is_ok(),
-                                "Wrote TPM NVRAM index");
+                                "Wrote TPM NVRAM index"
+                            );
 
                             res.map_err(|error| TpmHelperError::TpmCommandError {
                                 command_debug_info: CommandDebugInfo {
@@ -737,20 +740,25 @@ impl TpmEngineHelper {
                             // boot-time AK cert request fails.
                             tracing::info!("Preserve previous AK cert across boot");
 
-                            let res = self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert);
-                            tracing::info!(CVM_ALLOWED,
+                            let res = self.nv_write(
+                                write_auth_handle,
+                                auth,
+                                TPM_NV_INDEX_AIK_CERT,
+                                &cert,
+                            );
+                            tracing::info!(
+                                CVM_ALLOWED,
                                 op_type = "NvWrite",
                                 nv_index = TPM_NV_INDEX_AIK_CERT,
                                 data_size = cert.len(),
                                 success = res.is_ok(),
-                                "Wrote TPM NVRAM index");
+                                "Wrote TPM NVRAM index"
+                            );
 
                             res.map_err(|error| TpmHelperError::TpmCommandError {
                                 command_debug_info: CommandDebugInfo {
                                     command_code: CommandCodeEnum::NV_Write,
-                                    auth_handle: Some(ReservedHandle(
-                                        TPM_NV_INDEX_AIK_CERT.into(),
-                                    )),
+                                    auth_handle: Some(ReservedHandle(TPM_NV_INDEX_AIK_CERT.into())),
                                     nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                                 },
                                 error,
@@ -929,12 +937,14 @@ impl TpmEngineHelper {
             &data,
         );
 
-        tracing::info!(CVM_ALLOWED,
+        tracing::info!(
+            CVM_ALLOWED,
             op_type = "NvWrite",
             nv_index,
             data_size = data.len(),
             success = res.is_ok(),
-            "Wrote TPM NVRAM index");
+            "Wrote TPM NVRAM index"
+        );
 
         res.map_err(|error| TpmHelperError::TpmCommandError {
             command_debug_info: CommandDebugInfo {
@@ -975,12 +985,14 @@ impl TpmEngineHelper {
         let nv_index_size = res.nv_public.nv_public.data_size.get();
         let read_res = self.nv_read(TPM20_RH_OWNER, nv_index, nv_index_size, data);
 
-        tracing::info!(CVM_ALLOWED,
+        tracing::info!(
+            CVM_ALLOWED,
             op_type = "NvRead",
             nv_index,
             data_size = nv_index_size,
             success = read_res.is_ok(),
-            "Read TPM NVRAM index");
+            "Read TPM NVRAM index"
+        );
 
         match read_res {
             Err(error) => {
@@ -1641,7 +1653,8 @@ impl TpmEngineHelper {
     ) -> Result<(), TpmCommandError> {
         use tpm20proto::protocol::NvWriteCmd;
 
-        tracing::info!(CVM_ALLOWED,
+        tracing::info!(
+            CVM_ALLOWED,
             op_type = "BeginNvWrite",
             nv_index,
             data_size = data.len(),
@@ -1719,7 +1732,8 @@ impl TpmEngineHelper {
     ) -> Result<(), TpmCommandError> {
         use tpm20proto::protocol::NvReadCmd;
 
-        tracing::info!(CVM_ALLOWED,
+        tracing::info!(
+            CVM_ALLOWED,
             op_type = "BeginNvRead",
             nv_index,
             data_size = nv_index_size,

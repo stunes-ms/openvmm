@@ -7448,7 +7448,6 @@ dependencies = [
 name = "tpm_resources"
 version = "0.0.0"
 dependencies = [
- "guid",
  "inspect",
  "mesh",
  "vm_resource",
