@@ -231,7 +231,7 @@ pub struct Tpm {
     allow_ak_cert_renewal: bool,
 
     // For logging
-    bios_guid: Guid,
+    bios_guid: String,
     ak_pub_hash: String,
 
     // Runtime glue
@@ -357,7 +357,7 @@ impl Tpm {
         guest_secret_key: Option<Vec<u8>>,
         logger: Option<Arc<dyn TpmLogger>>,
         is_confidential_vm: bool,
-        bios_guid: Guid,
+        bios_guid: String,
     ) -> Result<Self, TpmError> {
         tracing::info!("initializing TPM");
 
@@ -413,6 +413,7 @@ impl Tpm {
             mmio_region,
             allow_ak_cert_renewal: false,
             bios_guid,
+            ak_pub_hash: "".into(),
 
             rt: TpmRuntime {
                 mem,
@@ -1093,7 +1094,7 @@ impl Tpm {
                     op_type = "AkCertProvision",
                     bios_guid = self.bios_guid,
                     got_cert = 1,
-                    cert_renew_time = duration.map_or(0, |d| d.as_secs()),
+                    cert_renew_time = duration.clone().map_or(0, |d| d.as_secs()),
                     "ak cert renewal is complete - now: {:?}, size: {}",
                     duration,
                     response.len()
