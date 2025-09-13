@@ -606,15 +606,22 @@ impl TpmEngineHelper {
                                 }
                             })?;
 
-                            self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert)
-                                .map_err(|error| TpmHelperError::TpmCommandError {
-                                    command_debug_info: CommandDebugInfo {
-                                        command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(TPM20_RH_OWNER),
-                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                    },
-                                    error,
-                                })?;
+                            let res = self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert);
+                            tracing::info!(CVM_ALLOWED,
+                                op_type = "NvWrite",
+                                nv_index = TPM_NV_INDEX_AIK_CERT,
+                                data_size = cert.len(),
+                                success = res.is_ok(),
+                                "Wrote TPM NVRAM index");
+
+                            res.map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_Write,
+                                    auth_handle: Some(TPM20_RH_OWNER),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
                         }
                     }
                 }
@@ -730,17 +737,24 @@ impl TpmEngineHelper {
                             // boot-time AK cert request fails.
                             tracing::info!("Preserve previous AK cert across boot");
 
-                            self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert)
-                                .map_err(|error| TpmHelperError::TpmCommandError {
-                                    command_debug_info: CommandDebugInfo {
-                                        command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(ReservedHandle(
-                                            TPM_NV_INDEX_AIK_CERT.into(),
-                                        )),
-                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                    },
-                                    error,
-                                })?;
+                            let res = self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert);
+                            tracing::info!(CVM_ALLOWED,
+                                op_type = "NvWrite",
+                                nv_index = TPM_NV_INDEX_AIK_CERT,
+                                data_size = cert.len(),
+                                success = res.is_ok(),
+                                "Wrote TPM NVRAM index");
+
+                            res.map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_Write,
+                                    auth_handle: Some(ReservedHandle(
+                                        TPM_NV_INDEX_AIK_CERT.into(),
+                                    )),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
                         }
                     }
                 }
@@ -908,13 +922,21 @@ impl TpmEngineHelper {
             });
         }
 
-        self.nv_write(
+        let res = self.nv_write(
             ReservedHandle(nv_index.into()),
             Some(auth_value),
             nv_index,
             &data,
-        )
-        .map_err(|error| TpmHelperError::TpmCommandError {
+        );
+
+        tracing::info!(CVM_ALLOWED,
+            op_type = "NvWrite",
+            nv_index,
+            data_size = data.len(),
+            success = res.is_ok(),
+            "Wrote TPM NVRAM index");
+
+        res.map_err(|error| TpmHelperError::TpmCommandError {
             command_debug_info: CommandDebugInfo {
                 command_code: CommandCodeEnum::NV_Write,
                 auth_handle: Some(ReservedHandle(nv_index.into())),
@@ -951,7 +973,16 @@ impl TpmEngineHelper {
         }
 
         let nv_index_size = res.nv_public.nv_public.data_size.get();
-        match self.nv_read(TPM20_RH_OWNER, nv_index, nv_index_size, data) {
+        let read_res = self.nv_read(TPM20_RH_OWNER, nv_index, nv_index_size, data);
+
+        tracing::info!(CVM_ALLOWED,
+            op_type = "NvRead",
+            nv_index,
+            data_size = nv_index_size,
+            success = read_res.is_ok(),
+            "Read TPM NVRAM index");
+
+        match read_res {
             Err(error) => {
                 if let TpmCommandError::TpmCommandFailed { response_code } = error {
                     if response_code == ResponseCode::NvUninitialized as u32 {
@@ -1610,6 +1641,13 @@ impl TpmEngineHelper {
     ) -> Result<(), TpmCommandError> {
         use tpm20proto::protocol::NvWriteCmd;
 
+        tracing::info!(CVM_ALLOWED,
+            op_type = "BeginNvWrite",
+            nv_index,
+            data_size = data.len(),
+            "Writing TPM NVRAM index"
+        );
+
         let session_tag = SessionTagEnum::Sessions;
 
         let mut cmd = if let Some(auth_value) = auth_value {
@@ -1680,6 +1718,13 @@ impl TpmEngineHelper {
         data: &mut [u8],
     ) -> Result<(), TpmCommandError> {
         use tpm20proto::protocol::NvReadCmd;
+
+        tracing::info!(CVM_ALLOWED,
+            op_type = "BeginNvRead",
+            nv_index,
+            data_size = nv_index_size,
+            "Reading TPM NVRAM index"
+        );
 
         let session_tag = SessionTagEnum::Sessions;
         let mut nv_read = NvReadCmd::new(
@@ -3756,6 +3801,7 @@ mod tests {
             None,
             None,
             false,
+            guid::guid!("00000000-0000-0000-0000-000000000000"),
         )
         .await
         .unwrap();

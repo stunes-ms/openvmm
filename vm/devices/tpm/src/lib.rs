@@ -24,6 +24,7 @@ use self::io_port_interface::TpmIoCommand;
 use crate::ak_cert::TpmAkCertType;
 use crate::tpm20proto::TpmaObject;
 use crate::tpm20proto::TpmaObjectBits;
+use base64::Engine;
 use chipset_device::ChipsetDevice;
 use chipset_device::io::IoError;
 use chipset_device::io::IoResult;
@@ -33,6 +34,7 @@ use chipset_device::poll_device::PollDevice;
 use cvm_tracing::CVM_ALLOWED;
 use cvm_tracing::CVM_CONFIDENTIAL;
 use guestmem::GuestMemory;
+use guid::Guid;
 use inspect::Inspect;
 use inspect::InspectMut;
 use logger::TpmLogEvent;
@@ -228,6 +230,10 @@ pub struct Tpm {
     mmio_region: Vec<(&'static str, RangeInclusive<u64>)>,
     allow_ak_cert_renewal: bool,
 
+    // For logging
+    bios_guid: Guid,
+    ak_pub_hash: String,
+
     // Runtime glue
     rt: TpmRuntime,
     #[inspect(skip)]
@@ -351,6 +357,7 @@ impl Tpm {
         guest_secret_key: Option<Vec<u8>>,
         logger: Option<Arc<dyn TpmLogger>>,
         is_confidential_vm: bool,
+        bios_guid: Guid,
     ) -> Result<Self, TpmError> {
         tracing::info!("initializing TPM");
 
@@ -405,6 +412,7 @@ impl Tpm {
             io_region,
             mmio_region,
             allow_ak_cert_renewal: false,
+            bios_guid,
 
             rt: TpmRuntime {
                 mem,
@@ -561,14 +569,66 @@ impl Tpm {
             // Initialize `TpmKeys`.
             // The procedure also generates randomized AK based on the TPM seed
             // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
+            tracing::info!(CVM_ALLOWED,
+                op_type = "VtpmKeysProvision",
+                key_type = "AkPub",
+                bios_guid = self.bios_guid,
+                "Creating AKPub key"
+            );
             let (ak_pub, can_renew_ak) = self
                 .tpm_engine_helper
                 .create_ak_pub(force_ak_regen)
-                .map_err(TpmErrorKind::CreateAkPublic)?;
+                .map_err(|e| {
+                    tracing::error!(CVM_ALLOWED,
+                        op_type = "VtpmKeysProvision",
+                        key_type = "AkPub",
+                        bios_guid = self.bios_guid,
+                        success = false,
+                        err = &e as &dyn std::error::Error,
+                        "Error creating AKPub key"
+                    );
+                    TpmErrorKind::CreateAkPublic(e)
+                })?;
+
+            // TODO: make sure we're hashing the right thing
+            let mut ak_pub_hasher = openssl::sha::Sha256::new();
+            ak_pub_hasher.update(&ak_pub.modulus);
+            let ak_pub_hash = ak_pub_hasher.finish();
+            self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(ak_pub_hash);
+
+            tracing::info!(CVM_ALLOWED,
+                op_type = "VtpmKeysProvision",
+                key_type = "AkPub",
+                bios_guid = self.bios_guid,
+                pub_key = self.ak_pub_hash,
+                success = true,
+                "Created AKPub key");
+
+            tracing::info!(CVM_ALLOWED,
+                op_type = "VtpmKeysProvision",
+                key_type = "EkPub",
+                "Creating EKPub key"
+            );
             let ek_pub = self
                 .tpm_engine_helper
                 .create_ek_pub()
-                .map_err(TpmErrorKind::CreateEkPublic)?;
+                .map_err(|e| {
+                    tracing::error!(CVM_ALLOWED,
+                        op_type = "VtpmKeysProvision",
+                        key_type = "EkPub",
+                        success = false,
+                        err = &e as &dyn std::error::Error,
+                        "Error creating AKPub key"
+                    );
+                    TpmErrorKind::CreateEkPublic(e)
+            })?;
+            tracing::info!(CVM_ALLOWED,
+                op_type = "VtpmKeysProvision",
+                key_type = "EkPub",
+                success = true,
+                "Created EKPub key");
+
             self.keys = Some(TpmKeys { ak_pub, ek_pub });
             tracing::info!(
                 CVM_ALLOWED,
@@ -1024,9 +1084,18 @@ impl Tpm {
                     return;
                 }
 
+                let duration = now.duration_since(std::time::UNIX_EPOCH);
+
+                // TODO: pubkey
+                // TODO: is_renew
                 tracing::info!(
+                    CVM_ALLOWED,
+                    op_type = "AkCertProvision",
+                    bios_guid = self.bios_guid,
+                    got_cert = 1,
+                    cert_renew_time = duration.map_or(0, |d| d.as_secs()),
                     "ak cert renewal is complete - now: {:?}, size: {}",
-                    now.duration_since(std::time::UNIX_EPOCH),
+                    duration,
                     response.len()
                 );
             }
