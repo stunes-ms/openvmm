@@ -5,7 +5,6 @@
 
 #![forbid(unsafe_code)]
 
-use guid::Guid;
 use inspect::Inspect;
 use mesh::MeshPayload;
 use vm_resource::Resource;
@@ -34,7 +33,7 @@ pub struct TpmDeviceHandle {
     /// Whether or not the TPM is in a confidential VM
     pub is_confidential_vm: bool,
     /// BIOS GUID (for logging purposes)
-    pub bios_guid: Guid,
+    pub bios_guid: String,
 }
 
 impl ResourceId<ChipsetDeviceHandleKind> for TpmDeviceHandle {
