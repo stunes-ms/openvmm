@@ -1045,6 +1045,8 @@ impl Tpm {
     /// Poll the AK cert request made by `renew_ak_cert`. This function is called by [`PollDevice::poll_device`].
     fn poll_ak_cert_request(&mut self, cx: &mut std::task::Context<'_>) {
         if let Some(async_ak_cert_request) = self.async_ak_cert_request.as_mut() {
+            let is_renew = async_ak_cert_request.is_renew;
+
             if let Poll::Ready(result) = async_ak_cert_request.fut.as_mut().poll(cx) {
                 // Once the received the response, update the renew time using `SystemTime::now`.
                 // DEVNOTE: The system time may not reflect the real time when suspension and resumption occur.
@@ -1071,7 +1073,7 @@ impl Tpm {
                             op_type = "AkCertProvision",
                             bios_guid = self.bios_guid,
                             pub_key = self.ak_pub_hash,
-                            is_renew = async_ak_cert_request.is_renew,
+                            is_renew,
                             got_cert = 0,
                             latency = latency.map_or(0, |d| d.as_secs()),
                             "The requested TPM AK cert is empty - now: {:?}",
@@ -1092,7 +1094,7 @@ impl Tpm {
                             op_type = "AkCertProvision",
                             bios_guid = self.bios_guid,
                             pub_key = self.ak_pub_hash,
-                            is_renew = async_ak_cert_request.is_renew,
+                            is_renew,
                             got_cert = 0,
                             latency = latency.map_or(0, |d| d.as_secs()),
                             error,
@@ -1128,7 +1130,7 @@ impl Tpm {
                     op_type = "AkCertProvision",
                     bios_guid = self.bios_guid,
                     pub_key = self.ak_pub_hash,
-                    is_renew = async_ak_cert_request.is_renew,
+                    is_renew,
                     got_cert = 1,
                     latency = latency.map_or(0, |d| d.as_secs()),
                     cert_renew_time = duration.clone().map_or(0, |d| d.as_secs()),
