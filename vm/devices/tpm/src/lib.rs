@@ -1011,7 +1011,8 @@ impl Tpm {
             is_renew,
             pub_key = self.ak_pub_hash,
             bios_guid = self.bios_guid,
-            "Request AK cert renewal");
+            "Request AK cert renewal"
+        );
 
         let ak_cert_request = self.create_ak_cert_request_or_attestation_report(false)?;
         let request_ak_cert_helper = self
