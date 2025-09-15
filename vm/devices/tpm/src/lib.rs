@@ -216,6 +216,12 @@ type AkCertRequestFuture = Box<
     dyn Send + Future<Output = Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync + 'static>>>,
 >;
 
+struct AkCertRequest {
+    is_renew: bool,
+    start_time: std::time::SystemTime,
+    fut: Pin<AkCertRequestFuture>,
+}
+
 /// Implementation of [`ms_tpm_20_ref::PlatformCallbacks::monotonic_timer`]
 pub type MonotonicTimer = Box<dyn Send + FnMut() -> std::time::Duration>;
 
@@ -250,7 +256,8 @@ pub struct Tpm {
     #[inspect(rename = "has_pending_nvram", with = "|x| !x.lock().is_empty()")]
     pending_nvram: Arc<Mutex<Vec<u8>>>,
     #[inspect(skip)]
-    async_ak_cert_request: Option<Pin<AkCertRequestFuture>>,
+    //async_ak_cert_request: Option<Pin<AkCertRequestFuture>>,
+    async_ak_cert_request: Option<Pin<Box<AkCertRequest>>>,
     #[inspect(skip)]
     waker: Option<Waker>,
     #[inspect(debug)]
@@ -572,7 +579,7 @@ impl Tpm {
             // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
             tracing::info!(
                 CVM_ALLOWED,
-                op_type = "VtpmKeysProvision",
+                op_type = "BeginVtpmKeysProvision",
                 key_type = "AkPub",
                 bios_guid = self.bios_guid,
                 "Creating AKPub key"
@@ -611,7 +618,7 @@ impl Tpm {
 
             tracing::info!(
                 CVM_ALLOWED,
-                op_type = "VtpmKeysProvision",
+                op_type = "BeginVtpmKeysProvision",
                 key_type = "EkPub",
                 "Creating EKPub key"
             );
@@ -997,7 +1004,14 @@ impl Tpm {
             return Ok(());
         }
 
-        tracing::trace!("Request AK cert renewal");
+        // TODO: is_renew
+        tracing::info!(
+            CVM_ALLOWED,
+            op_type = "BeginAkCertProvision",
+            is_renew = true,
+            pub_key = self.ak_pub_hash,
+            bios_guid = self.bios_guid,
+            "Request AK cert renewal");
 
         let ak_cert_request = self.create_ak_cert_request_or_attestation_report(false)?;
         let request_ak_cert_helper = self
@@ -1013,7 +1027,13 @@ impl Tpm {
             }
         };
 
-        self.async_ak_cert_request = Some(Box::pin(fut));
+        //self.async_ak_cert_request = Some(Box::pin(fut));
+        self.async_ak_cert_request = Some(Box::pin(AkCertRequest {
+            // TODO
+            is_renew: true,
+            start_time: std::time::SystemTime::now(),
+            fut: Box::pin(fut),
+        }));
 
         // Ensure poll gets called again.
         if let Some(waker) = self.waker.take() {
@@ -1026,11 +1046,12 @@ impl Tpm {
     /// Poll the AK cert request made by `renew_ak_cert`. This function is called by [`PollDevice::poll_device`].
     fn poll_ak_cert_request(&mut self, cx: &mut std::task::Context<'_>) {
         if let Some(async_ak_cert_request) = self.async_ak_cert_request.as_mut() {
-            if let Poll::Ready(result) = async_ak_cert_request.as_mut().poll(cx) {
+            if let Poll::Ready(result) = async_ak_cert_request.fut.as_mut().poll(cx) {
                 // Once the received the response, update the renew time using `SystemTime::now`.
                 // DEVNOTE: The system time may not reflect the real time when suspension and resumption occur.
                 // See more details in `refresh_device_attestation_data_on_nv_read`.
                 let now = std::time::SystemTime::now();
+                let latency = now.duration_since(async_ak_cert_request.start_time);
 
                 // Clear `async_ak_cert_request` to allow the next renewal request.
                 self.async_ak_cert_request = None;
@@ -1048,6 +1069,11 @@ impl Tpm {
                     Ok(_data) => {
                         tracelimit::warn_ratelimited!(
                             CVM_ALLOWED,
+                            op_type = "AkCertProvision",
+                            bios_guid = self.bios_guid,
+                            pub_key = self.ak_pub_hash,
+                            got_cert = 0,
+                            latency = latency.map_or(0, |d| d.as_secs()),
                             "The requested TPM AK cert is empty - now: {:?}",
                             now.duration_since(std::time::UNIX_EPOCH),
                         );
@@ -1063,6 +1089,11 @@ impl Tpm {
                     Err(error) => {
                         tracelimit::warn_ratelimited!(
                             CVM_ALLOWED,
+                            op_type = "AkCertProvision",
+                            bios_guid = self.bios_guid,
+                            pub_key = self.ak_pub_hash,
+                            got_cert = 0,
+                            latency = latency.map_or(0, |d| d.as_secs()),
                             error,
                             "Failed to request new TPM AK cert - now: {:?}",
                             now.duration_since(std::time::UNIX_EPOCH),
@@ -1097,7 +1128,9 @@ impl Tpm {
                     CVM_ALLOWED,
                     op_type = "AkCertProvision",
                     bios_guid = self.bios_guid,
+                    pub_key = self.ak_pub_hash,
                     got_cert = 1,
+                    latency = latency.map_or(0, |d| d.as_secs()),
                     cert_renew_time = duration.clone().map_or(0, |d| d.as_secs()),
                     "ak cert renewal is complete - now: {:?}, size: {}",
                     duration,
