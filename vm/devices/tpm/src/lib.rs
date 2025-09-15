@@ -34,7 +34,6 @@ use chipset_device::poll_device::PollDevice;
 use cvm_tracing::CVM_ALLOWED;
 use cvm_tracing::CVM_CONFIDENTIAL;
 use guestmem::GuestMemory;
-use guid::Guid;
 use inspect::Inspect;
 use inspect::InspectMut;
 use logger::TpmLogEvent;
@@ -1072,7 +1071,7 @@ impl Tpm {
                             op_type = "AkCertProvision",
                             bios_guid = self.bios_guid,
                             pub_key = self.ak_pub_hash,
-                            is_renew: async_ak_cert_request.is_renew,
+                            is_renew = async_ak_cert_request.is_renew,
                             got_cert = 0,
                             latency = latency.map_or(0, |d| d.as_secs()),
                             "The requested TPM AK cert is empty - now: {:?}",
@@ -1093,7 +1092,7 @@ impl Tpm {
                             op_type = "AkCertProvision",
                             bios_guid = self.bios_guid,
                             pub_key = self.ak_pub_hash,
-                            is_renew: async_ak_cert_request.is_renew,
+                            is_renew = async_ak_cert_request.is_renew,
                             got_cert = 0,
                             latency = latency.map_or(0, |d| d.as_secs()),
                             error,
@@ -1129,7 +1128,7 @@ impl Tpm {
                     op_type = "AkCertProvision",
                     bios_guid = self.bios_guid,
                     pub_key = self.ak_pub_hash,
-                    is_renew: async_ak_cert_request.is_renew,
+                    is_renew = async_ak_cert_request.is_renew,
                     got_cert = 1,
                     latency = latency.map_or(0, |d| d.as_secs()),
                     cert_renew_time = duration.clone().map_or(0, |d| d.as_secs()),
