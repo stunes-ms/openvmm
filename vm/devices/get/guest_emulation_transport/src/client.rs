@@ -346,6 +346,7 @@ impl GuestEmulationTransportClient {
         gsp_extended_status: crate::api::GspExtendedStatusFlags,
     ) -> crate::api::GuestStateProtection {
         let mut buffer = [0; get_protocol::GSP_CLEARTEXT_MAX as usize * 2];
+        let start_time = std::time::SystemTime::now();
         getrandom::fill(&mut buffer).expect("rng failure");
 
         tracing::info!(
@@ -368,6 +369,7 @@ impl GuestEmulationTransportClient {
         tracing::info!(
             CVM_ALLOWED,
             op_type = "GspCallback",
+            latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
             "Got guest state protection data"
         );
 
