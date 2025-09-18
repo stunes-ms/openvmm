@@ -572,6 +572,7 @@ impl Tpm {
             // Initialize `TpmKeys`.
             // The procedure also generates randomized AK based on the TPM seed
             // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
+            let start_time = std::time::SystemTime::now();
             tracing::info!(
                 CVM_ALLOWED,
                 op_type = "BeginVtpmKeysProvision",
@@ -590,6 +591,7 @@ impl Tpm {
                         bios_guid = self.bios_guid,
                         success = false,
                         err = &e as &dyn std::error::Error,
+                        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
                         "Error creating AKPub key"
                     );
                     TpmErrorKind::CreateAkPublic(e)
@@ -601,6 +603,7 @@ impl Tpm {
             let ak_pub_hash = ak_pub_hasher.finish();
             self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ak_pub_hash);
 
+            let start_time = std::time::SystemTime::now();
             tracing::info!(
                 CVM_ALLOWED,
                 op_type = "VtpmKeysProvision",
@@ -608,6 +611,7 @@ impl Tpm {
                 bios_guid = self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
+                latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
                 "Created AKPub key"
             );
 
@@ -624,6 +628,7 @@ impl Tpm {
                     key_type = "EkPub",
                     success = false,
                     err = &e as &dyn std::error::Error,
+                    latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
                     "Error creating AKPub key"
                 );
                 TpmErrorKind::CreateEkPublic(e)
@@ -633,6 +638,7 @@ impl Tpm {
                 op_type = "VtpmKeysProvision",
                 key_type = "EkPub",
                 success = true,
+                latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
                 "Created EKPub key"
             );
 
@@ -969,7 +975,6 @@ impl Tpm {
             return Ok(());
         }
 
-        // TODO: is_renew
         tracing::info!(
             CVM_ALLOWED,
             op_type = "BeginAkCertProvision",
