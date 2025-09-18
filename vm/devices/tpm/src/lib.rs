@@ -255,7 +255,6 @@ pub struct Tpm {
     #[inspect(rename = "has_pending_nvram", with = "|x| !x.lock().is_empty()")]
     pending_nvram: Arc<Mutex<Vec<u8>>>,
     #[inspect(skip)]
-    //async_ak_cert_request: Option<Pin<AkCertRequestFuture>>,
     async_ak_cert_request: Option<Pin<Box<AkCertRequest>>>,
     #[inspect(skip)]
     waker: Option<Waker>,
@@ -1040,7 +1039,6 @@ impl Tpm {
             }
         };
 
-        //self.async_ak_cert_request = Some(Box::pin(fut));
         self.async_ak_cert_request = Some(Box::pin(AkCertRequest {
             is_renew,
             start_time: std::time::SystemTime::now(),

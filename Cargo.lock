@@ -7427,7 +7427,6 @@ dependencies = [
  "cvm_tracing",
  "getrandom 0.3.3",
  "guestmem",
- "guid",
  "inspect",
  "mesh",
  "ms-tpm-20-ref",

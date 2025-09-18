@@ -172,12 +172,6 @@ enum GspType {
     GspKey,
 }
 
-impl std::fmt::Display for GspType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 /// Key protector settings
 #[derive(Clone, Copy)]
 struct KeyProtectorSettings {
@@ -187,9 +181,9 @@ struct KeyProtectorSettings {
     use_gsp_by_id: bool,
     /// Whether hardware key sealing is used
     use_hardware_unlock: bool,
-    /// GSP type used for decryption
+    /// GSP type used for decryption (for logging)
     decrypt_gsp_type: GspType,
-    /// GSP type used for encryption
+    /// GSP type used for encryption (for logging)
     encrypt_gsp_type: GspType,
 }
 
@@ -383,9 +377,6 @@ pub async fn initialize_platform_security(
     let start_time = std::time::SystemTime::now();
     tracing::info!(tcb_version=?tcb_version, vmgs_encrypted = vmgs_encrypted, op_type = "BeginDecryptVmgs", "Deriving keys");
 
-    //let decrypt_span = tracing::info_span!("DecryptVmgs", CVM_ALLOWED, success = tracing::field::Empty, err = tracing::field::Empty, decrypt_gsp_type = tracing::field::Empty, encrypt_gsp_type = tracing::field::Empty).entered();
-    //let decrypt_span_span = decrypt_span.enter();
-
     let derived_keys_result = get_derived_keys(
         get,
         tee_call,
@@ -413,8 +404,6 @@ pub async fn initialize_platform_security(
                 .map_or(0, |d| d.as_secs()),
             "Failed to derive keys"
         );
-        //decrypt_span.record("success", false);
-        //decrypt_span.record("err", &e as &dyn std::error::Error);
         AttestationErrorInner::GetDerivedKeys(e)
     })?;
 
@@ -441,8 +430,6 @@ pub async fn initialize_platform_security(
                 .map_or(0, |d| d.as_secs()),
             "Failed to unlock datastore"
         );
-        //decrypt_span.record("success", false);
-        //decrypt_span.record("err", &e as &dyn std::error::Error);
         get.event_log_fatal(guest_emulation_transport::api::EventLogId::ATTESTATION_FAILED)
             .await;
 
@@ -462,9 +449,6 @@ pub async fn initialize_platform_security(
         latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
         "Unlocked datastore"
     );
-    //decrypt_span.record("success", true);
-    //decrypt_span.record("decrypt_gsp_type", derived_keys_result.key_protector_settings.decrypt_gsp_type.to_string());
-    //decrypt_span.record("encrypt_gsp_type", derived_keys_result.key_protector_settings.encrypt_gsp_type.to_string());
 
     let state_refresh_request_from_gsp = derived_keys_result
         .gsp_extended_status_flags
