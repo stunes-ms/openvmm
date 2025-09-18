@@ -381,6 +381,10 @@ pub async fn initialize_platform_security(
     let vmgs_encrypted: bool = vmgs.is_encrypted();
 
     tracing::info!(tcb_version=?tcb_version, vmgs_encrypted = vmgs_encrypted, op_type = "BeginDecryptVmgs", "Deriving keys");
+
+    let decrypt_span = tracing::info_span!("DecryptVmgs", CVM_ALLOWED, success = tracing::field::Empty, err = tracing::field::Empty, decrypt_gsp_type = tracing::field::Empty, encrypt_gsp_type = tracing::field::Empty).entered();
+    //let decrypt_span_span = decrypt_span.enter();
+
     let derived_keys_result = get_derived_keys(
         get,
         tee_call,
@@ -398,13 +402,15 @@ pub async fn initialize_platform_security(
     )
     .await
     .map_err(|e| {
-        tracing::error!(
-            CVM_ALLOWED,
-            op_type = "DecryptVmgs",
-            success = false,
-            err = &e as &dyn std::error::Error,
-            "Failed to derive keys"
-        );
+        //tracing::error!(
+        //    CVM_ALLOWED,
+        //    op_type = "DecryptVmgs",
+        //    success = false,
+        //    err = &e as &dyn std::error::Error,
+        //    "Failed to derive keys"
+        //);
+        decrypt_span.record("success", false);
+        decrypt_span.record("err", &e as &dyn std::error::Error);
         AttestationErrorInner::GetDerivedKeys(e)
     })?;
 
@@ -421,33 +427,36 @@ pub async fn initialize_platform_security(
     )
     .await
     {
-        tracing::error!(
-            CVM_ALLOWED,
-            op_type = "DecryptVmgs",
-            success = false,
-            err = &e as &dyn std::error::Error,
-            "Failed to unlock datastore"
-        );
+        //tracing::error!(
+        //    CVM_ALLOWED,
+        //    op_type = "DecryptVmgs",
+        //    success = false,
+        //    err = &e as &dyn std::error::Error,
+        //    "Failed to unlock datastore"
+        //);
+        decrypt_span.record("success", false);
+        decrypt_span.record("err", &e as &dyn std::error::Error);
         get.event_log_fatal(guest_emulation_transport::api::EventLogId::ATTESTATION_FAILED)
             .await;
 
         Err(AttestationErrorInner::UnlockVmgsDataStore(e))?
     }
 
-    tracing::info!(
-        CVM_ALLOWED,
-        op_type = "DecryptVmgs",
-        success = true,
-        decrypt_gsp_type = derived_keys_result
-            .key_protector_settings
-            .decrypt_gsp_type
-            .to_string(),
-        encrypt_gsp_type = derived_keys_result
-            .key_protector_settings
-            .encrypt_gsp_type
-            .to_string(),
-        "Unlocked datastore"
-    );
+    //tracing::info!(
+    //    CVM_ALLOWED,
+    //    op_type = "DecryptVmgs",
+    //    success = true,
+    //    decrypt_gsp_type = ?derived_keys_result
+    //        .key_protector_settings
+    //        .decrypt_gsp_type,
+    //    encrypt_gsp_type = ?derived_keys_result
+    //        .key_protector_settings
+    //        .encrypt_gsp_type,
+    //    "Unlocked datastore"
+    //);
+    decrypt_span.record("success", true);
+    decrypt_span.record("decrypt_gsp_type", derived_keys_result.key_protector_settings.decrypt_gsp_type.to_string());
+    decrypt_span.record("encrypt_gsp_type", derived_keys_result.key_protector_settings.encrypt_gsp_type.to_string());
 
     let state_refresh_request_from_gsp = derived_keys_result
         .gsp_extended_status_flags
