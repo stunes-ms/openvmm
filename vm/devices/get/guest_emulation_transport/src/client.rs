@@ -369,7 +369,9 @@ impl GuestEmulationTransportClient {
         tracing::info!(
             CVM_ALLOWED,
             op_type = "GspCallback",
-            latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+            latency = std::time::SystemTime::now()
+                .duration_since(start_time)
+                .map_or(0, |d| d.as_secs()),
             "Got guest state protection data"
         );
 

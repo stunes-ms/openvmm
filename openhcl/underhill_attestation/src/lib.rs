@@ -408,7 +408,9 @@ pub async fn initialize_platform_security(
             op_type = "DecryptVmgs",
             success = false,
             err = &e as &dyn std::error::Error,
-            latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+            latency = std::time::SystemTime::now()
+                .duration_since(start_time)
+                .map_or(0, |d| d.as_secs()),
             "Failed to derive keys"
         );
         //decrypt_span.record("success", false);
@@ -434,7 +436,9 @@ pub async fn initialize_platform_security(
             op_type = "DecryptVmgs",
             success = false,
             err = &e as &dyn std::error::Error,
-            latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+            latency = std::time::SystemTime::now()
+                .duration_since(start_time)
+                .map_or(0, |d| d.as_secs()),
             "Failed to unlock datastore"
         );
         //decrypt_span.record("success", false);
