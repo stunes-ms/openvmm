@@ -615,7 +615,9 @@ impl TpmEngineHelper {
                                 nv_index = TPM_NV_INDEX_AIK_CERT,
                                 data_size = cert.len(),
                                 success = res.is_ok(),
-                                latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+                                latency = std::time::SystemTime::now()
+                                    .duration_since(start_time)
+                                    .map_or(0, |d| d.as_secs()),
                                 "Wrote TPM NVRAM index"
                             );
 
@@ -755,7 +757,9 @@ impl TpmEngineHelper {
                                 nv_index = TPM_NV_INDEX_AIK_CERT,
                                 data_size = cert.len(),
                                 success = res.is_ok(),
-                                latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+                                latency = std::time::SystemTime::now()
+                                    .duration_since(start_time)
+                                    .map_or(0, |d| d.as_secs()),
                                 "Wrote TPM NVRAM index"
                             );
 
@@ -948,7 +952,9 @@ impl TpmEngineHelper {
             nv_index,
             data_size = data.len(),
             success = res.is_ok(),
-            latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+            latency = std::time::SystemTime::now()
+                .duration_since(start_time)
+                .map_or(0, |d| d.as_secs()),
             "Wrote TPM NVRAM index"
         );
 
@@ -1005,7 +1011,9 @@ impl TpmEngineHelper {
             nv_index,
             data_size = nv_index_size,
             success = read_res.is_ok(),
-            latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+            latency = std::time::SystemTime::now()
+                .duration_since(start_time)
+                .map_or(0, |d| d.as_secs()),
             "Read TPM NVRAM index"
         );
 
