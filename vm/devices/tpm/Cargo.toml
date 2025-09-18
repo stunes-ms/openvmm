@@ -30,7 +30,6 @@ pal_async.workspace = true
 async-trait.workspace = true
 bitfield-struct.workspace = true
 getrandom.workspace = true
-guid.workspace = true
 parking_lot.workspace = true
 thiserror.workspace = true
 tracelimit.workspace = true
