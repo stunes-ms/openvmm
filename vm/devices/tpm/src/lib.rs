@@ -597,7 +597,7 @@ impl Tpm {
                         bios_guid = self.bios_guid,
                         success = false,
                         err = &e as &dyn std::error::Error,
-                        latency = ?std::time::SystemTime::now().duration_since(start_time),
+                        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
                         "Error creating AKPub key"
                     );
                     TpmErrorKind::CreateAkPublic(e)
@@ -615,7 +615,7 @@ impl Tpm {
                 bios_guid = self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
-                latency = ?std::time::SystemTime::now().duration_since(start_time),
+                        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
                 "Created AKPub key"
             );
 
@@ -632,7 +632,7 @@ impl Tpm {
                     key_type = "EkPub",
                     success = false,
                     err = &e as &dyn std::error::Error,
-                    latency = ?std::time::SystemTime::now().duration_since(start_time),
+                    latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
                     "Error creating AKPub key"
                 );
                 TpmErrorKind::CreateEkPublic(e)
@@ -642,7 +642,7 @@ impl Tpm {
                 op_type = "VtpmKeysProvision",
                 key_type = "EkPub",
                 success = true,
-                latency = ?std::time::SystemTime::now().duration_since(start_time),
+                latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
                 "Created EKPub key"
             );
 
@@ -1082,7 +1082,7 @@ impl Tpm {
                             pub_key = self.ak_pub_hash,
                             is_renew,
                             got_cert = 0,
-                            latency = ?latency,
+                            latency = latency.map_or(0, |d| d.as_millis()),
                             now = ?now.duration_since(std::time::UNIX_EPOCH),
                             "The requested TPM AK cert is empty"
                         );
@@ -1103,7 +1103,7 @@ impl Tpm {
                             pub_key = self.ak_pub_hash,
                             is_renew,
                             got_cert = 0,
-                            latency = ?latency,
+                            latency = latency.map_or(0, |d| d.as_millis()),
                             error,
                             "Failed to request new TPM AK cert - now: {:?}",
                             now.duration_since(std::time::UNIX_EPOCH),
@@ -1140,7 +1140,7 @@ impl Tpm {
                     is_renew,
                     got_cert = 1,
                     size = response.len(),
-                    latency = ?latency,
+                    latency = latency.map_or(0, |d| d.as_millis()),
                     cert_renew_time = ?duration,
                     "ak cert renewal is complete",
                 );

@@ -617,7 +617,7 @@ impl TpmEngineHelper {
                                 success = res.is_ok(),
                                 latency = std::time::SystemTime::now()
                                     .duration_since(start_time)
-                                    .map_or(0, |d| d.as_secs()),
+                                    .map_or(0, |d| d.as_millis()),
                                 "Wrote TPM NVRAM index"
                             );
 
@@ -759,7 +759,7 @@ impl TpmEngineHelper {
                                 success = res.is_ok(),
                                 latency = std::time::SystemTime::now()
                                     .duration_since(start_time)
-                                    .map_or(0, |d| d.as_secs()),
+                                    .map_or(0, |d| d.as_millis()),
                                 "Wrote TPM NVRAM index"
                             );
 
@@ -954,7 +954,7 @@ impl TpmEngineHelper {
             success = res.is_ok(),
             latency = std::time::SystemTime::now()
                 .duration_since(start_time)
-                .map_or(0, |d| d.as_secs()),
+                .map_or(0, |d| d.as_millis()),
             "Wrote TPM NVRAM index"
         );
 
@@ -1013,7 +1013,7 @@ impl TpmEngineHelper {
             success = read_res.is_ok(),
             latency = std::time::SystemTime::now()
                 .duration_since(start_time)
-                .map_or(0, |d| d.as_secs()),
+                .map_or(0, |d| d.as_millis()),
             "Read TPM NVRAM index"
         );
 
