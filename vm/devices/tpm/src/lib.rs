@@ -40,6 +40,8 @@ use logger::TpmLogEvent;
 use logger::TpmLogger;
 use ms_tpm_20_ref::MsTpm20RefPlatform;
 use parking_lot::Mutex;
+use sha2::Digest;
+use sha2::Sha256;
 use std::future::Future;
 use std::ops::RangeInclusive;
 use std::pin::Pin;
@@ -603,9 +605,7 @@ impl Tpm {
                 })?;
 
             // TODO: make sure we're hashing the right thing
-            let mut ak_pub_hasher = openssl::sha::Sha256::new();
-            ak_pub_hasher.update(&ak_pub.modulus);
-            let ak_pub_hash = ak_pub_hasher.finish();
+            let ak_pub_hash = Sha256::digest(ak_pub.modulus);
             self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ak_pub_hash);
 
             let start_time = std::time::SystemTime::now();
