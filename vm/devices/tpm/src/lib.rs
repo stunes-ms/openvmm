@@ -597,7 +597,9 @@ impl Tpm {
                         bios_guid = self.bios_guid,
                         success = false,
                         err = &e as &dyn std::error::Error,
-                        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
+                        latency = std::time::SystemTime::now()
+                            .duration_since(start_time)
+                            .map_or(0, |d| d.as_millis()),
                         "Error creating AKPub key"
                     );
                     TpmErrorKind::CreateAkPublic(e)
@@ -615,7 +617,9 @@ impl Tpm {
                 bios_guid = self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
-                        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
+                latency = std::time::SystemTime::now()
+                    .duration_since(start_time)
+                    .map_or(0, |d| d.as_millis()),
                 "Created AKPub key"
             );
 
@@ -632,7 +636,9 @@ impl Tpm {
                     key_type = "EkPub",
                     success = false,
                     err = &e as &dyn std::error::Error,
-                    latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
+                    latency = std::time::SystemTime::now()
+                        .duration_since(start_time)
+                        .map_or(0, |d| d.as_millis()),
                     "Error creating AKPub key"
                 );
                 TpmErrorKind::CreateEkPublic(e)
@@ -642,7 +648,9 @@ impl Tpm {
                 op_type = "VtpmKeysProvision",
                 key_type = "EkPub",
                 success = true,
-                latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
+                latency = std::time::SystemTime::now()
+                    .duration_since(start_time)
+                    .map_or(0, |d| d.as_millis()),
                 "Created EKPub key"
             );
 
