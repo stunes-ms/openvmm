@@ -1143,6 +1143,7 @@ impl Tpm {
                     pub_key = self.ak_pub_hash,
                     is_renew,
                     got_cert = 1,
+                    size = response.len(),
                     latency = latency.map_or(0, |d| d.as_secs()),
                     cert_renew_time = duration.clone().map_or(0, |d| d.as_secs()),
                     "ak cert renewal is complete - now: {:?}, size: {}",
