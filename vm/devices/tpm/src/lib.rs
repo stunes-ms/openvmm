@@ -583,6 +583,7 @@ impl Tpm {
                 op_type = "BeginVtpmKeysProvision",
                 key_type = "AkPub",
                 bios_guid = self.bios_guid,
+                force_ak_regen,
                 "Creating AKPub key"
             );
             let (ak_pub, can_renew_ak) = self
@@ -596,9 +597,7 @@ impl Tpm {
                         bios_guid = self.bios_guid,
                         success = false,
                         err = &e as &dyn std::error::Error,
-                        latency = std::time::SystemTime::now()
-                            .duration_since(start_time)
-                            .map_or(0, |d| d.as_secs()),
+                        latency = ?std::time::SystemTime::now().duration_since(start_time),
                         "Error creating AKPub key"
                     );
                     TpmErrorKind::CreateAkPublic(e)
@@ -616,9 +615,7 @@ impl Tpm {
                 bios_guid = self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_secs()),
+                latency = ?std::time::SystemTime::now().duration_since(start_time),
                 "Created AKPub key"
             );
 
@@ -635,9 +632,7 @@ impl Tpm {
                     key_type = "EkPub",
                     success = false,
                     err = &e as &dyn std::error::Error,
-                    latency = std::time::SystemTime::now()
-                        .duration_since(start_time)
-                        .map_or(0, |d| d.as_secs()),
+                    latency = ?std::time::SystemTime::now().duration_since(start_time),
                     "Error creating AKPub key"
                 );
                 TpmErrorKind::CreateEkPublic(e)
@@ -647,9 +642,7 @@ impl Tpm {
                 op_type = "VtpmKeysProvision",
                 key_type = "EkPub",
                 success = true,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_secs()),
+                latency = ?std::time::SystemTime::now().duration_since(start_time),
                 "Created EKPub key"
             );
 
@@ -1004,6 +997,9 @@ impl Tpm {
 
     /// This routine calls (via GET) external server to issue AK cert.
     /// This function can only be called when `ak_cert_type` is `Trusted`, `HwAttested`, or `SwAttested`.
+    /// This function is used both to issue the initial AKCert and renew it
+    /// later. is_renew indicates whether this is a subsequent renewal, for
+    /// logging purposes.
     fn renew_ak_cert(&mut self, is_renew: bool) -> Result<(), TpmError> {
         // Silently do nothing if renewal is not allowed.
         if !self.allow_ak_cert_renewal {
@@ -1086,9 +1082,9 @@ impl Tpm {
                             pub_key = self.ak_pub_hash,
                             is_renew,
                             got_cert = 0,
-                            latency = latency.map_or(0, |d| d.as_secs()),
-                            "The requested TPM AK cert is empty - now: {:?}",
-                            now.duration_since(std::time::UNIX_EPOCH),
+                            latency = ?latency,
+                            now = ?now.duration_since(std::time::UNIX_EPOCH),
+                            "The requested TPM AK cert is empty"
                         );
 
                         // Set the renew time if the ak cert is empty, avoiding retrying on each nv read
@@ -1107,7 +1103,7 @@ impl Tpm {
                             pub_key = self.ak_pub_hash,
                             is_renew,
                             got_cert = 0,
-                            latency = latency.map_or(0, |d| d.as_secs()),
+                            latency = ?latency,
                             error,
                             "Failed to request new TPM AK cert - now: {:?}",
                             now.duration_since(std::time::UNIX_EPOCH),
@@ -1144,11 +1140,9 @@ impl Tpm {
                     is_renew,
                     got_cert = 1,
                     size = response.len(),
-                    latency = latency.map_or(0, |d| d.as_secs()),
-                    cert_renew_time = duration.clone().map_or(0, |d| d.as_secs()),
-                    "ak cert renewal is complete - now: {:?}, size: {}",
-                    duration,
-                    response.len()
+                    latency = ?latency,
+                    cert_renew_time = ?duration,
+                    "ak cert renewal is complete",
                 );
             }
         }
