@@ -1528,6 +1528,8 @@ mod tests {
             should_write_kp: false,
             use_gsp_by_id: false,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::None,
+            encrypt_gsp_type: GspType::None,
         };
 
         let bios_guid = Guid::new_random();
@@ -1552,6 +1554,8 @@ mod tests {
             should_write_kp: false,
             use_gsp_by_id: false,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::None,
+            encrypt_gsp_type: GspType::None,
         };
 
         // Even if the VMGS is encrypted, if no derived keys are provided, nothing should happen
@@ -1590,6 +1594,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
 
         let bios_guid = Guid::new_random();
@@ -1641,6 +1647,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
 
         // Ingress is now the old egress, and we provide a new new egress key
@@ -1712,6 +1720,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
 
         let bios_guid = Guid::new_random();
@@ -1784,6 +1794,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
 
         let bios_guid = Guid::new_random();
@@ -1861,6 +1873,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
 
         let bios_guid = Guid::new_random();
@@ -1913,6 +1927,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
 
         let bios_guid = Guid::new_random();
@@ -2002,6 +2018,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: true,
             use_hardware_unlock: true,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
         persist_all_key_protectors(
             &mut vmgs,
@@ -2037,6 +2055,8 @@ mod tests {
             should_write_kp: false,
             use_gsp_by_id: true,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::GspById,
+            encrypt_gsp_type: GspType::GspById,
         };
         persist_all_key_protectors(
             &mut vmgs,
@@ -2079,6 +2099,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: false,
             use_hardware_unlock: false,
+            decrypt_gsp_type: GspType::None,
+            encrypt_gsp_type: GspType::None,
         };
         persist_all_key_protectors(
             &mut vmgs,
@@ -2124,6 +2146,8 @@ mod tests {
             should_write_kp: true,
             use_gsp_by_id: false,
             use_hardware_unlock: true,
+            decrypt_gsp_type: GspType::None,
+            encrypt_gsp_type: GspType::None,
         };
 
         persist_all_key_protectors(
