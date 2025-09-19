@@ -371,7 +371,7 @@ impl GuestEmulationTransportClient {
             op_type = "GspCallback",
             latency = std::time::SystemTime::now()
                 .duration_since(start_time)
-                .map_or(0, |d| d.as_secs()),
+                .map_or(0, |d| d.as_millis()),
             "Got guest state protection data"
         );
 

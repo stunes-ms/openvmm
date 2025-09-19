@@ -401,7 +401,7 @@ pub async fn initialize_platform_security(
             err = &e as &dyn std::error::Error,
             latency = std::time::SystemTime::now()
                 .duration_since(start_time)
-                .map_or(0, |d| d.as_secs()),
+                .map_or(0, |d| d.as_millis()),
             "Failed to derive keys"
         );
         AttestationErrorInner::GetDerivedKeys(e)
@@ -427,7 +427,7 @@ pub async fn initialize_platform_security(
             err = &e as &dyn std::error::Error,
             latency = std::time::SystemTime::now()
                 .duration_since(start_time)
-                .map_or(0, |d| d.as_secs()),
+                .map_or(0, |d| d.as_millis()),
             "Failed to unlock datastore"
         );
         get.event_log_fatal(guest_emulation_transport::api::EventLogId::ATTESTATION_FAILED)
@@ -446,7 +446,7 @@ pub async fn initialize_platform_security(
         encrypt_gsp_type = ?derived_keys_result
             .key_protector_settings
             .encrypt_gsp_type,
-        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_secs()),
+        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
         "Unlocked datastore"
     );
 
