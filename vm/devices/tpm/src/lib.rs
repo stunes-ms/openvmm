@@ -1112,9 +1112,9 @@ impl Tpm {
                             is_renew,
                             got_cert = 0,
                             latency = latency.map_or(0, |d| d.as_millis()),
+                            now = ?now.duration_since(std::time::UNIX_EPOCH),
                             error,
-                            "Failed to request new TPM AK cert - now: {:?}",
-                            now.duration_since(std::time::UNIX_EPOCH),
+                            "Failed to request new TPM AK cert",
                         );
 
                         // Use the non-async version of function to log the event (without flushing).
