@@ -774,7 +774,7 @@ impl TpmEngineHelper {
                                     nv_index = TPM_NV_INDEX_AIK_CERT,
                                     data_size = cert.len(),
                                     success = false,
-                                    err = &error as &dyn std::error:Error,
+                                    err = &error as &dyn std::error::Error,
                                     latency = std::time::SystemTime::now()
                                         .duration_since(start_time)
                                         .map_or(0, |d| d.as_millis()),
@@ -985,7 +985,7 @@ impl TpmEngineHelper {
                 nv_index,
                 data_size = data.len(),
                 success = false,
-                err = &error as &dyn std::error:Error,
+                err = &error as &dyn std::error::Error,
                 latency = std::time::SystemTime::now()
                     .duration_since(start_time)
                     .map_or(0, |d| d.as_millis()),
