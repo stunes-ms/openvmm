@@ -609,7 +609,6 @@ impl Tpm {
             let ak_pub_hash = Sha256::digest(ak_pub.modulus);
             self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ak_pub_hash);
 
-            let start_time = std::time::SystemTime::now();
             tracing::info!(
                 CVM_ALLOWED,
                 op_type = "VtpmKeysProvision",
@@ -623,6 +622,7 @@ impl Tpm {
                 "Created AKPub key"
             );
 
+            let start_time = std::time::SystemTime::now();
             tracing::info!(
                 CVM_ALLOWED,
                 op_type = "BeginVtpmKeysProvision",
@@ -639,7 +639,7 @@ impl Tpm {
                     latency = std::time::SystemTime::now()
                         .duration_since(start_time)
                         .map_or(0, |d| d.as_millis()),
-                    "Error creating AKPub key"
+                    "Error creating EKPub key"
                 );
                 TpmErrorKind::CreateEkPublic(e)
             })?;
