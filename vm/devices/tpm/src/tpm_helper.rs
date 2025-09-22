@@ -783,7 +783,9 @@ impl TpmEngineHelper {
                                 TpmHelperError::TpmCommandError {
                                     command_debug_info: CommandDebugInfo {
                                         command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(ReservedHandle(TPM_NV_INDEX_AIK_CERT.into())),
+                                        auth_handle: Some(ReservedHandle(
+                                            TPM_NV_INDEX_AIK_CERT.into(),
+                                        )),
                                         nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                                     },
                                     error,
@@ -1048,7 +1050,6 @@ impl TpmEngineHelper {
             "Reading TPM NVRAM index"
         );
         let read_res = self.nv_read(TPM20_RH_OWNER, nv_index, nv_index_size, data);
-
 
         match read_res {
             Err(error) => {
