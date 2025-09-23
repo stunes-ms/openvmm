@@ -375,7 +375,12 @@ pub async fn initialize_platform_security(
     let vmgs_encrypted: bool = vmgs.is_encrypted();
 
     let start_time = std::time::SystemTime::now();
-    tracing::info!(?tcb_version, vmgs_encrypted, op_type = "BeginDecryptVmgs", "Deriving keys");
+    tracing::info!(
+        ?tcb_version,
+        vmgs_encrypted,
+        op_type = "BeginDecryptVmgs",
+        "Deriving keys"
+    );
 
     let derived_keys_result = get_derived_keys(
         get,
