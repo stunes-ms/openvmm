@@ -605,9 +605,12 @@ impl Tpm {
                     TpmErrorKind::CreateAkPublic(e)
                 })?;
 
-            // TODO: make sure we're hashing the right thing
-            let ak_pub_hash = Sha256::digest(ak_pub.modulus);
-            self.ak_pub_hash = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(ak_pub_hash);
+            // Log a hash of the AKPub for auditing purposes.
+            let mut ak_pub_hasher = Sha256::new();
+            ak_pub_hasher.update(ak_pub.exponent);
+            ak_pub_hasher.update(ak_pub.modulus);
+            let ak_pub_hash = ak_pub_hasher.finalize();
+            self.ak_pub_hash = base64::engine::general_purpose::STANDARD.encode(ak_pub_hash);
 
             tracing::info!(
                 CVM_ALLOWED,
