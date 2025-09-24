@@ -157,6 +157,14 @@ enum PersistAllKeyProtectorsError {
     WriteKeyProtectorById(#[source] vmgs::WriteToVmgsError),
 }
 
+// Operation types for provisioning telemetry.
+#[derive(Debug)]
+enum LogOpType {
+    BeginDecryptVmgs,
+    DecryptVmgs,
+    ConvertEncryptionType,
+}
+
 /// Label used by `derive_key`
 const VMGS_KEY_DERIVE_LABEL: &[u8; 7] = b"VMGSKEY";
 
@@ -364,7 +372,7 @@ pub async fn initialize_platform_security(
     tracing::info!(
         ?tcb_version,
         vmgs_encrypted,
-        op_type = "BeginDecryptVmgs",
+        op_type = ?LogOpType::BeginDecryptVmgs,
         "Deriving keys"
     );
 
@@ -387,7 +395,7 @@ pub async fn initialize_platform_security(
     .map_err(|e| {
         tracing::error!(
             CVM_ALLOWED,
-            op_type = "DecryptVmgs",
+            op_type = ?LogOpType::DecryptVmgs,
             success = false,
             err = &e as &dyn std::error::Error,
             latency = std::time::SystemTime::now()
@@ -413,7 +421,7 @@ pub async fn initialize_platform_security(
     {
         tracing::error!(
             CVM_ALLOWED,
-            op_type = "DecryptVmgs",
+            op_type = ?LogOpType::DecryptVmgs,
             success = false,
             err = &e as &dyn std::error::Error,
             latency = std::time::SystemTime::now()
@@ -429,7 +437,7 @@ pub async fn initialize_platform_security(
 
     tracing::info!(
         CVM_ALLOWED,
-        op_type = "DecryptVmgs",
+        op_type = ?LogOpType::DecryptVmgs,
         success = true,
         decrypt_gsp_type = ?derived_keys_result
             .key_protector_settings
@@ -950,7 +958,7 @@ async fn get_derived_keys(
 
         tracing::info!(
             CVM_ALLOWED,
-            op_type = "ConvertEncryptionType",
+            op_type = ?LogOpType::ConvertEncryptionType,
             "Converting GSP method."
         );
     }
