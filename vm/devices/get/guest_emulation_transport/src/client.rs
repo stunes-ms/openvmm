@@ -18,6 +18,13 @@ use user_driver::DmaClient;
 use vpci::bus_control::VpciBusEvent;
 use zerocopy::IntoBytes;
 
+/// Operation types for provisioning telemetry.
+#[derive(Debug)]
+enum LogOpType {
+    BeginGspCallback,
+    GspCallback,
+}
+
 /// Guest-side client for the GET.
 ///
 /// A new client is created from [`spawn_get_worker`](crate::spawn_get_worker),
@@ -351,7 +358,7 @@ impl GuestEmulationTransportClient {
 
         tracing::info!(
             CVM_ALLOWED,
-            op_type = "BeginGspCallback",
+            op_type = ?LogOpType::BeginGspCallback,
             "Getting guest state protection data"
         );
 
@@ -368,7 +375,7 @@ impl GuestEmulationTransportClient {
 
         tracing::info!(
             CVM_ALLOWED,
-            op_type = "GspCallback",
+            op_type = ?LogOpType::GspCallback,
             latency = std::time::SystemTime::now()
                 .duration_since(start_time)
                 .map_or(0, |d| d.as_millis()),

@@ -111,6 +111,26 @@ const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 // 16kB: vtpmservice provisions a 16kB blob for the vTPM; HCL/OpenHCL provisions a 32k blob
 const LEGACY_VTPM_SIZE: usize = 16384;
 
+/// Operation types for provisioning telemetry.
+#[derive(Debug)]
+enum LogOpType {
+    BeginVtpmKeysProvision,
+    VtpmKeysProvision,
+    BeginAkCertProvision,
+    AkCertProvision,
+    BeginNvWrite,
+    NvWrite,
+    BeginNvRead,
+    NvRead,
+}
+
+/// Key types for provisioning telemetry.
+#[derive(Debug)]
+enum KeyType {
+    AkPub,
+    EkPub,
+}
+
 #[derive(Debug, Copy, Clone, Inspect)]
 #[repr(C)]
 struct PpiState {
@@ -580,8 +600,8 @@ impl Tpm {
             let start_time = std::time::SystemTime::now();
             tracing::info!(
                 CVM_ALLOWED,
-                op_type = "BeginVtpmKeysProvision",
-                key_type = "AkPub",
+                op_type = ?LogOpType::BeginVtpmKeysProvision,
+                key_type = ?KeyType::AkPub,
                 bios_guid = self.bios_guid,
                 force_ak_regen,
                 "Creating AKPub key"
@@ -592,8 +612,8 @@ impl Tpm {
                 .map_err(|e| {
                     tracing::error!(
                         CVM_ALLOWED,
-                        op_type = "VtpmKeysProvision",
-                        key_type = "AkPub",
+                        op_type = ?LogOpType::VtpmKeysProvision,
+                        key_type = ?KeyType::AkPub,
                         bios_guid = self.bios_guid,
                         success = false,
                         err = &e as &dyn std::error::Error,
@@ -614,8 +634,8 @@ impl Tpm {
 
             tracing::info!(
                 CVM_ALLOWED,
-                op_type = "VtpmKeysProvision",
-                key_type = "AkPub",
+                op_type = ?LogOpType::VtpmKeysProvision,
+                key_type = ?KeyType::AkPub,
                 bios_guid = self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
@@ -628,15 +648,15 @@ impl Tpm {
             let start_time = std::time::SystemTime::now();
             tracing::info!(
                 CVM_ALLOWED,
-                op_type = "BeginVtpmKeysProvision",
-                key_type = "EkPub",
+                op_type = ?LogOpType::BeginVtpmKeysProvision,
+                key_type = ?KeyType::EkPub,
                 "Creating EKPub key"
             );
             let ek_pub = self.tpm_engine_helper.create_ek_pub().map_err(|e| {
                 tracing::error!(
                     CVM_ALLOWED,
-                    op_type = "VtpmKeysProvision",
-                    key_type = "EkPub",
+                    op_type = ?LogOpType::VtpmKeysProvision,
+                    key_type = ?KeyType::EkPub,
                     success = false,
                     err = &e as &dyn std::error::Error,
                     latency = std::time::SystemTime::now()
@@ -648,8 +668,8 @@ impl Tpm {
             })?;
             tracing::info!(
                 CVM_ALLOWED,
-                op_type = "VtpmKeysProvision",
-                key_type = "EkPub",
+                op_type = ?LogOpType::VtpmKeysProvision,
+                key_type = ?KeyType::EkPub,
                 success = true,
                 latency = std::time::SystemTime::now()
                     .duration_since(start_time)
@@ -1025,7 +1045,7 @@ impl Tpm {
 
         tracing::info!(
             CVM_ALLOWED,
-            op_type = "BeginAkCertProvision",
+            op_type = ?LogOpType::BeginAkCertProvision,
             is_renew,
             pub_key = self.ak_pub_hash,
             bios_guid = self.bios_guid,
@@ -1088,7 +1108,7 @@ impl Tpm {
                     Ok(_data) => {
                         tracelimit::warn_ratelimited!(
                             CVM_ALLOWED,
-                            op_type = "AkCertProvision",
+                            op_type = ?LogOpType::AkCertProvision,
                             bios_guid = self.bios_guid,
                             pub_key = self.ak_pub_hash,
                             is_renew,
@@ -1109,7 +1129,7 @@ impl Tpm {
                     Err(error) => {
                         tracelimit::warn_ratelimited!(
                             CVM_ALLOWED,
-                            op_type = "AkCertProvision",
+                            op_type = ?LogOpType::AkCertProvision,
                             bios_guid = self.bios_guid,
                             pub_key = self.ak_pub_hash,
                             is_renew,
@@ -1145,7 +1165,7 @@ impl Tpm {
 
                 tracing::info!(
                     CVM_ALLOWED,
-                    op_type = "AkCertProvision",
+                    op_type = ?LogOpType::AkCertProvision,
                     bios_guid = self.bios_guid,
                     pub_key = self.ak_pub_hash,
                     is_renew,
