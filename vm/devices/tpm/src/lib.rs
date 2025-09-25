@@ -34,6 +34,7 @@ use chipset_device::poll_device::PollDevice;
 use cvm_tracing::CVM_ALLOWED;
 use cvm_tracing::CVM_CONFIDENTIAL;
 use guestmem::GuestMemory;
+use guid::Guid;
 use inspect::Inspect;
 use inspect::InspectMut;
 use logger::TpmLogEvent;
@@ -258,7 +259,7 @@ pub struct Tpm {
     allow_ak_cert_renewal: bool,
 
     // For logging
-    bios_guid: String,
+    bios_guid: Guid,
     ak_pub_hash: String,
 
     // Runtime glue
@@ -380,7 +381,7 @@ impl Tpm {
         guest_secret_key: Option<Vec<u8>>,
         logger: Option<Arc<dyn TpmLogger>>,
         is_confidential_vm: bool,
-        bios_guid: String,
+        bios_guid: Guid,
     ) -> Result<Self, TpmError> {
         tracing::info!("initializing TPM");
 
@@ -598,7 +599,7 @@ impl Tpm {
                 CVM_ALLOWED,
                 op_type = ?LogOpType::BeginVtpmKeysProvision,
                 key_type = ?KeyType::AkPub,
-                bios_guid = self.bios_guid,
+                bios_guid = %self.bios_guid,
                 force_ak_regen,
                 "Creating AKPub key"
             );
@@ -610,7 +611,7 @@ impl Tpm {
                         CVM_ALLOWED,
                         op_type = ?LogOpType::VtpmKeysProvision,
                         key_type = ?KeyType::AkPub,
-                        bios_guid = self.bios_guid,
+                        bios_guid = %self.bios_guid,
                         success = false,
                         err = &e as &dyn std::error::Error,
                         latency = std::time::SystemTime::now()
@@ -632,7 +633,7 @@ impl Tpm {
                 CVM_ALLOWED,
                 op_type = ?LogOpType::VtpmKeysProvision,
                 key_type = ?KeyType::AkPub,
-                bios_guid = self.bios_guid,
+                bios_guid = %self.bios_guid,
                 pub_key = self.ak_pub_hash,
                 success = true,
                 latency = std::time::SystemTime::now()
@@ -1014,7 +1015,7 @@ impl Tpm {
             op_type = ?LogOpType::BeginAkCertProvision,
             is_renew,
             pub_key = self.ak_pub_hash,
-            bios_guid = self.bios_guid,
+            bios_guid = %self.bios_guid,
             "Request AK cert renewal"
         );
 
@@ -1080,7 +1081,7 @@ impl Tpm {
                         tracelimit::warn_ratelimited!(
                             CVM_ALLOWED,
                             op_type = ?LogOpType::AkCertProvision,
-                            bios_guid = self.bios_guid,
+                            bios_guid = %self.bios_guid,
                             pub_key = self.ak_pub_hash,
                             is_renew,
                             got_cert = 0,
@@ -1101,7 +1102,7 @@ impl Tpm {
                         tracelimit::warn_ratelimited!(
                             CVM_ALLOWED,
                             op_type = ?LogOpType::AkCertProvision,
-                            bios_guid = self.bios_guid,
+                            bios_guid = %self.bios_guid,
                             pub_key = self.ak_pub_hash,
                             is_renew,
                             got_cert = 0,
@@ -1137,7 +1138,7 @@ impl Tpm {
                 tracing::info!(
                     CVM_ALLOWED,
                     op_type = ?LogOpType::AkCertProvision,
-                    bios_guid = self.bios_guid,
+                    bios_guid = %self.bios_guid,
                     pub_key = self.ak_pub_hash,
                     is_renew,
                     got_cert = 1,

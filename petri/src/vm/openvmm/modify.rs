@@ -56,7 +56,8 @@ impl PetriVmConfigOpenVmm {
                     guest_secret_key: None,
                     logger: None,
                     is_confidential_vm: self.firmware.isolation().is_some(),
-                    bios_guid: "00000000-0000-0000-0000-000000000000".into(),
+                    // TODO: generate an actual BIOS GUID and put it here
+                    bios_guid: guid::guid!("00000000-0000-0000-0000-000000000000"),
                 }
                 .into_resource(),
             });
