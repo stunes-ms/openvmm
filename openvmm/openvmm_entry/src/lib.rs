@@ -1059,7 +1059,8 @@ fn vm_config_from_command_line(
                 guest_secret_key: None,
                 logger: None,
                 is_confidential_vm: false,
-                bios_guid: "00000000-0000-0000-0000-000000000000".into(),
+                // TODO: generate an actual BIOS guid and put it here
+                bios_guid: guid::guid!("00000000-0000-0000-0000-000000000000"),
             }
             .into_resource(),
         });

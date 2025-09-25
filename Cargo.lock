@@ -7443,6 +7443,7 @@ dependencies = [
  "cvm_tracing",
  "getrandom 0.3.3",
  "guestmem",
+ "guid",
  "inspect",
  "mesh",
  "ms-tpm-20-ref",
@@ -7463,6 +7464,7 @@ dependencies = [
 name = "tpm_resources"
 version = "0.0.0"
 dependencies = [
+ "guid",
  "inspect",
  "mesh",
  "vm_resource",
