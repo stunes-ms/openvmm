@@ -1006,9 +1006,11 @@ async fn get_derived_keys(
                     gsp_response_by_id.seed.buffer[..gsp_response_by_id.seed.length as usize]
                         .to_vec(),
                 );
+                key_protector_settings.decrypt_gsp_type = GspType::GspById;
             } else {
                 derived_keys.ingress = ingress_key;
             }
+        } else {
             key_protector_settings.decrypt_gsp_type = GspType::GspById;
         }
 
