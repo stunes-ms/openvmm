@@ -32,6 +32,7 @@ impl SimpleFlowNode for Node {
             out_dbg_info,
         } = request;
 
+        let host_arch = ctx.arch();
         let platform = ctx.platform();
         let (objcopy_pkg, objcopy_bin) = match arch {
             CommonArch::X86_64 => match platform {
@@ -42,7 +43,15 @@ impl SimpleFlowNode for Node {
                     FlowPlatformLinuxDistro::Ubuntu => {
                         ("binutils-x86-64-linux-gnu", "x86_64-linux-gnu-objcopy")
                     }
-                    FlowPlatformLinuxDistro::Arch => ("binutils", "objcopy"),
+                    FlowPlatformLinuxDistro::Arch => match host_arch {
+                        FlowArch::X86_64 => ("binutils", "objcopy"),
+                        FlowArch::Aarch64 => {
+                            anyhow::bail!("Arch Linux ARM is not supported")
+                        }
+                        _ => {
+                            anyhow::bail!("Unknown host arch")
+                        }
+                    }
                     FlowPlatformLinuxDistro::Unknown => anyhow::bail!("Unknown Linux distribution"),
                 },
                 _ => anyhow::bail!("Unsupported platform"),
@@ -53,7 +62,15 @@ impl SimpleFlowNode for Node {
                         FlowPlatformLinuxDistro::Fedora | FlowPlatformLinuxDistro::Ubuntu => {
                             "binutils-aarch64-linux-gnu"
                         }
-                        FlowPlatformLinuxDistro::Arch => "aarch64-linux-gnu-binutils",
+                        FlowPlatformLinuxDistro::Arch => match host_arch {
+                            FlowArch::X86_64 => "aarch64-linux-gnu-binutils",
+                            FlowArch::Aarch64 => {
+                                anyhow::bail!("Arch Linux ARM is not supported")
+                            }
+                            _ => {
+                                anyhow::bail!("Unknown host arch")
+                            }
+                        }
                         FlowPlatformLinuxDistro::Unknown => {
                             anyhow::bail!("Unknown Linux distribution")
                         }
