@@ -71,7 +71,7 @@ impl FlowNode for Node {
                                             _ => {
                                                 anyhow::bail!("Unknown host arch")
                                             }
-                                        }
+                                        },
                                         FlowPlatformLinuxDistro::Unknown => {
                                             anyhow::bail!("Unknown Linux distribution")
                                         }
@@ -95,7 +95,7 @@ impl FlowNode for Node {
                                             _ => {
                                                 anyhow::bail!("Unknown host arch")
                                             }
-                                        }
+                                        },
                                         FlowPlatformLinuxDistro::Unknown => {
                                             anyhow::bail!("Unknown Linux distribution")
                                         }

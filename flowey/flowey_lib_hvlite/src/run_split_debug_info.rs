@@ -51,7 +51,7 @@ impl SimpleFlowNode for Node {
                         _ => {
                             anyhow::bail!("Unknown host arch")
                         }
-                    }
+                    },
                     FlowPlatformLinuxDistro::Unknown => anyhow::bail!("Unknown Linux distribution"),
                 },
                 _ => anyhow::bail!("Unsupported platform"),
@@ -70,7 +70,7 @@ impl SimpleFlowNode for Node {
                             _ => {
                                 anyhow::bail!("Unknown host arch")
                             }
-                        }
+                        },
                         FlowPlatformLinuxDistro::Unknown => {
                             anyhow::bail!("Unknown Linux distribution")
                         }
