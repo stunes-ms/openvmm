@@ -103,6 +103,20 @@ pub mod user_facing {
 
         Ok(())
     }
+
+    /// Helper method to handle Linux distros that are supported only on one
+    /// host architecture.
+    /// match_arch!(var, arch, result)
+    #[macro_export]
+    macro_rules! match_arch {
+        ($host_arch:expr, $match_arch:pat, $expr:expr) => {
+            if matches!($host_arch, $match_arch) {
+                $expr
+            } else {
+                anyhow::bail!("Linux distro not supported on host arch {}", $host_arch);
+            }
+        };
+    }
 }
 
 /// Check if `ReadVar` / `WriteVar` instances are backed by the same underlying

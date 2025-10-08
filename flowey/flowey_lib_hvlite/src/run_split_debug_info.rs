@@ -43,15 +43,9 @@ impl SimpleFlowNode for Node {
                     FlowPlatformLinuxDistro::Ubuntu => {
                         ("binutils-x86-64-linux-gnu", "x86_64-linux-gnu-objcopy")
                     }
-                    FlowPlatformLinuxDistro::Arch => match host_arch {
-                        FlowArch::X86_64 => ("binutils", "objcopy"),
-                        FlowArch::Aarch64 => {
-                            anyhow::bail!("Arch Linux ARM is not supported")
-                        }
-                        _ => {
-                            anyhow::bail!("Unknown host arch")
-                        }
-                    },
+                    FlowPlatformLinuxDistro::Arch => {
+                        match_arch!(host_arch, FlowArch::X86_64, ("binutils", "objcopy"))
+                    }
                     FlowPlatformLinuxDistro::Unknown => anyhow::bail!("Unknown Linux distribution"),
                 },
                 _ => anyhow::bail!("Unsupported platform"),
@@ -62,15 +56,9 @@ impl SimpleFlowNode for Node {
                         FlowPlatformLinuxDistro::Fedora | FlowPlatformLinuxDistro::Ubuntu => {
                             "binutils-aarch64-linux-gnu"
                         }
-                        FlowPlatformLinuxDistro::Arch => match host_arch {
-                            FlowArch::X86_64 => "aarch64-linux-gnu-binutils",
-                            FlowArch::Aarch64 => {
-                                anyhow::bail!("Arch Linux ARM is not supported")
-                            }
-                            _ => {
-                                anyhow::bail!("Unknown host arch")
-                            }
-                        },
+                        FlowPlatformLinuxDistro::Arch => {
+                            match_arch!(host_arch, FlowArch::X86_64, "aarch64-linux-gnu-binutils")
+                        }
                         FlowPlatformLinuxDistro::Unknown => {
                             anyhow::bail!("Unknown Linux distribution")
                         }

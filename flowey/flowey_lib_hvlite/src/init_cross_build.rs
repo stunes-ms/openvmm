@@ -63,15 +63,9 @@ impl FlowNode for Node {
                                     let pkg = match linux_distribution {
                                         FlowPlatformLinuxDistro::Fedora => "gcc-x86_64-linux-gnu",
                                         FlowPlatformLinuxDistro::Ubuntu => "gcc-x86-64-linux-gnu",
-                                        FlowPlatformLinuxDistro::Arch => match host_arch {
-                                            FlowArch::X86_64 => "gcc",
-                                            FlowArch::Aarch64 => {
-                                                anyhow::bail!("Arch Linux ARM is not supported")
-                                            }
-                                            _ => {
-                                                anyhow::bail!("Unknown host arch")
-                                            }
-                                        },
+                                        FlowPlatformLinuxDistro::Arch => {
+                                            match_arch!(host_arch, FlowArch::X86_64, "gcc")
+                                        }
                                         FlowPlatformLinuxDistro::Unknown => {
                                             anyhow::bail!("Unknown Linux distribution")
                                         }
@@ -87,15 +81,11 @@ impl FlowNode for Node {
                                         | FlowPlatformLinuxDistro::Ubuntu => {
                                             "gcc-aarch64-linux-gnu"
                                         }
-                                        FlowPlatformLinuxDistro::Arch => match host_arch {
-                                            FlowArch::X86_64 => "aarch64-linux-gnu-gcc",
-                                            FlowArch::Aarch64 => {
-                                                anyhow::bail!("Arch Linux ARM is not supported")
-                                            }
-                                            _ => {
-                                                anyhow::bail!("Unknown host arch")
-                                            }
-                                        },
+                                        FlowPlatformLinuxDistro::Arch => match_arch!(
+                                            host_arch,
+                                            FlowArch::X86_64,
+                                            "aarch64-linux-gnu-gcc"
+                                        ),
                                         FlowPlatformLinuxDistro::Unknown => {
                                             anyhow::bail!("Unknown Linux distribution")
                                         }
