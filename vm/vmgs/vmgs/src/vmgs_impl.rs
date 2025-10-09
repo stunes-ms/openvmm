@@ -50,6 +50,17 @@ pub struct VmgsFileInfo {
     pub encrypted: bool,
 }
 
+/// GSP types that can be used to encrypt a VMGS file.
+#[derive(Debug, Clone, Copy)]
+pub enum GspType {
+    /// No GSP
+    None,
+    /// GSP by ID
+    GspById,
+    /// GSP key
+    GspKey,
+}
+
 // Aggregates fully validated data from the FILE_TABLE and EXTENDED_FILE_TABLE
 // control blocks.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

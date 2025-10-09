@@ -21,6 +21,7 @@ pub use igvm_attest::IgvmAttestRequestHelper;
 pub use igvm_attest::ak_cert::parse_response as parse_ak_cert_response;
 
 use ::vmgs::EncryptionAlgorithm;
+use ::vmgs::GspType;
 use ::vmgs::Vmgs;
 use cvm_tracing::CVM_ALLOWED;
 use get_protocol::dps_json::GuestStateEncryptionPolicy;
@@ -164,13 +165,6 @@ struct Keys {
     ingress: [u8; AES_GCM_KEY_LENGTH],
     decrypt_egress: Option<[u8; AES_GCM_KEY_LENGTH]>,
     encrypt_egress: [u8; AES_GCM_KEY_LENGTH],
-}
-
-#[derive(Debug, Clone, Copy)]
-enum GspType {
-    None,
-    GspById,
-    GspKey,
 }
 
 /// Key protector settings
