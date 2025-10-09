@@ -14,16 +14,10 @@ use inspect::Inspect;
 use mesh::rpc::Rpc;
 use mesh::rpc::RpcSend;
 use std::sync::Arc;
+use telemetry::LogOpType;
 use user_driver::DmaClient;
 use vpci::bus_control::VpciBusEvent;
 use zerocopy::IntoBytes;
-
-/// Operation types for provisioning telemetry.
-#[derive(Debug)]
-enum LogOpType {
-    BeginGspCallback,
-    GspCallback,
-}
 
 /// Guest-side client for the GET.
 ///

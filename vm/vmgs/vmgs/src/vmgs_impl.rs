@@ -18,6 +18,7 @@ use inspect_counters::Counter;
 use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use telemetry::LogOpType;
 use vmgs_format::EncryptionAlgorithm;
 use vmgs_format::FileAttribute;
 use vmgs_format::FileId;
@@ -37,12 +38,6 @@ use vmgs_format::VmgsNonce;
 use zerocopy::FromBytes;
 use zerocopy::FromZeros;
 use zerocopy::IntoBytes;
-
-/// Operation types for provisioning telemetry.
-#[derive(Debug)]
-enum LogOpType {
-    VmgsProvision,
-}
 
 /// Info about a specific VMGS file.
 #[derive(Debug)]

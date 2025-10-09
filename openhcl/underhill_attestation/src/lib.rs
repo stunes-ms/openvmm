@@ -46,6 +46,7 @@ use secure_key_release::VmgsEncryptionKeys;
 use static_assertions::const_assert_eq;
 use std::fmt::Debug;
 use tee_call::TeeCall;
+use telemetry::LogOpType;
 use thiserror::Error;
 use zerocopy::FromZeros;
 use zerocopy::IntoBytes;
@@ -153,14 +154,6 @@ enum PersistAllKeyProtectorsError {
     WriteKeyProtector(#[source] vmgs::WriteToVmgsError),
     #[error("failed to read key protector by id to vmgs")]
     WriteKeyProtectorById(#[source] vmgs::WriteToVmgsError),
-}
-
-// Operation types for provisioning telemetry.
-#[derive(Debug)]
-enum LogOpType {
-    BeginDecryptVmgs,
-    DecryptVmgs,
-    ConvertEncryptionType,
 }
 
 /// Label used by `derive_key`

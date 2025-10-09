@@ -49,6 +49,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::task::Waker;
+use telemetry::LogOpType;
 use thiserror::Error;
 use tpm_helper::CommandDebugInfo;
 use tpm_helper::TpmCommandError;
@@ -111,19 +112,6 @@ const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 
 // 16kB: vtpmservice provisions a 16kB blob for the vTPM; HCL/OpenHCL provisions a 32k blob
 const LEGACY_VTPM_SIZE: usize = 16384;
-
-/// Operation types for provisioning telemetry.
-#[derive(Debug)]
-enum LogOpType {
-    BeginVtpmKeysProvision,
-    VtpmKeysProvision,
-    BeginAkCertProvision,
-    AkCertProvision,
-    BeginNvWrite,
-    NvWrite,
-    BeginNvRead,
-    NvRead,
-}
 
 /// Key types for provisioning telemetry.
 #[derive(Debug)]

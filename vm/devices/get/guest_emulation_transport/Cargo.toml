@@ -14,6 +14,7 @@ get_protocol.workspace = true
 guestmem.workspace = true
 guest_emulation_device = { workspace = true, optional = true }
 hvdef.workspace = true
+telemetry.workspace = true
 underhill_config.workspace = true
 user_driver.workspace = true
 vmbus_async.workspace = true
