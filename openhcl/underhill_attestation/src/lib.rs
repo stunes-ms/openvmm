@@ -426,7 +426,7 @@ pub async fn initialize_platform_security(
                 guest_state_encryption_policy,
                 GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::GspKey
             ) {
-                log_op_warn!(LogOpType::StrictEncryptionFailure, "Allowing no GSP");
+                unreachable!("get_derived_keys should have returned EncryptionRequiredButNotFound");
             }
         }
         GspType::GspById => {
