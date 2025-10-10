@@ -422,31 +422,30 @@ pub async fn initialize_platform_security(
     //   has GspKey encryption.
     match derived_keys_result.key_protector_settings.encrypt_gsp_type {
         GspType::None => {
-            if matches!(guest_state_encryption_policy, GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::GspKey) {
-                log_op_warn!(
-                    LogOpType::StrictEncryptionFailure,
-                    "Allowing no GSP"
-                );
+            if matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::GspKey
+            ) {
+                log_op_warn!(LogOpType::StrictEncryptionFailure, "Allowing no GSP");
             }
         }
         GspType::GspById => {
-            if matches!(guest_state_encryption_policy, GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspKey) {
-                log_op_warn!(
-                    LogOpType::StrictEncryptionFailure,
-                    "Allowing GspById"
-                );
+            if matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspKey
+            ) {
+                log_op_warn!(LogOpType::StrictEncryptionFailure, "Allowing GspById");
             }
         }
         GspType::GspKey => {
-            if matches!(guest_state_encryption_policy, GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspById) {
-                log_op_warn!(
-                    LogOpType::StrictEncryptionFailure,
-                    "Allowing GspKey"
-                );
+            if matches!(
+                guest_state_encryption_policy,
+                GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspById
+            ) {
+                log_op_warn!(LogOpType::StrictEncryptionFailure, "Allowing GspKey");
             }
         }
     }
-
 
     // All Underhill VMs use VMGS encryption
     tracing::info!("Unlocking VMGS");
