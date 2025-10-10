@@ -635,7 +635,10 @@ impl Tpm {
                 key_type = ?KeyType::EkPub,
                 "Creating EKPub key"
             );
-            let ek_pub_result = self.tpm_engine_helper.create_ek_pub().map_err(TpmErrorKind::CreateEkPublic);
+            let ek_pub_result = self
+                .tpm_engine_helper
+                .create_ek_pub()
+                .map_err(TpmErrorKind::CreateEkPublic);
             log_op_end!(
                 LogOpType::VtpmKeysProvision,
                 ek_pub_result,

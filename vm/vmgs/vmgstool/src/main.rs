@@ -1042,10 +1042,7 @@ async fn vmgs_file_query_encryption(file_path: impl AsRef<Path>) -> Result<(), E
 
     let vmgs = vmgs_file_open(file_path, None as Option<PathBuf>, OpenMode::ReadOnly).await?;
 
-    match (
-        vmgs.get_encryption_algorithm(),
-        vmgs_get_gsp_type(&vmgs),
-    ) {
+    match (vmgs.get_encryption_algorithm(), vmgs_get_gsp_type(&vmgs)) {
         (EncryptionAlgorithm::NONE, scheme) => {
             println!("not encrypted (encryption scheme: {scheme:?})");
             Err(Error::NotEncrypted)

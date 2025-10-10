@@ -610,7 +610,8 @@ impl TpmEngineHelper {
                             })?;
 
                             let start_time = std::time::SystemTime::now();
-                            let result = self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert);
+                            let result =
+                                self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert);
 
                             log_op_end!(
                                 LogOpType::NvWrite,
@@ -745,7 +746,12 @@ impl TpmEngineHelper {
                             tracing::info!("Preserve previous AK cert across boot");
 
                             let start_time = std::time::SystemTime::now();
-                            let result = self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert);
+                            let result = self.nv_write(
+                                write_auth_handle,
+                                auth,
+                                TPM_NV_INDEX_AIK_CERT,
+                                &cert,
+                            );
 
                             log_op_end!(
                                 LogOpType::NvWrite,
@@ -759,9 +765,7 @@ impl TpmEngineHelper {
                             result.map_err(|error| TpmHelperError::TpmCommandError {
                                 command_debug_info: CommandDebugInfo {
                                     command_code: CommandCodeEnum::NV_Write,
-                                    auth_handle: Some(ReservedHandle(
-                                        TPM_NV_INDEX_AIK_CERT.into(),
-                                    )),
+                                    auth_handle: Some(ReservedHandle(TPM_NV_INDEX_AIK_CERT.into())),
                                     nv_index: Some(TPM_NV_INDEX_AIK_CERT),
                                 },
                                 error,
