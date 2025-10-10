@@ -382,7 +382,7 @@ pub async fn initialize_platform_security(
         "Deriving keys"
     );
 
-    let result = get_derived_keys(
+    let derived_keys_result = get_derived_keys(
         get,
         tee_call,
         vmgs,
@@ -406,8 +406,7 @@ pub async fn initialize_platform_security(
             "Failed to derive keys"
         );
         AttestationErrorInner::GetDerivedKeys(e)
-    });
-    let derived_keys_result = result?;
+    })?;
 
     // Log a warning if the VMGS state is out of sync with the VM's
     // configuration.
