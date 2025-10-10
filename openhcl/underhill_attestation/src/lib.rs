@@ -52,6 +52,7 @@ use telemetry::log_op;
 use telemetry::log_op_begin;
 use telemetry::log_op_end_err;
 use telemetry::log_op_end_ok;
+use telemetry::log_op_warn;
 use thiserror::Error;
 use zerocopy::FromZeros;
 use zerocopy::IntoBytes;
@@ -407,6 +408,45 @@ pub async fn initialize_platform_security(
         AttestationErrorInner::GetDerivedKeys(e)
     });
     let derived_keys_result = result?;
+
+    // Log a warning if the VMGS state is out of sync with the VM's
+    // configuration.
+    //
+    // This should only happen if strict encryption policy is disabled and one
+    // of the following is true:
+    // - The VM is configured to have no encryption, but it already has GspKey
+    //   or GspById encryption.
+    // - The VM is configured to use GspKey, but GspKey is not available and
+    //   GspById is.
+    // - The VM is configured to use no encryption or GspById, but it already
+    //   has GspKey encryption.
+    match derived_keys_result.key_protector_settings.encrypt_gsp_type {
+        GspType::None => {
+            if matches!(guest_state_encryption_policy, GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::GspKey) {
+                log_op_warn!(
+                    LogOpType::StrictEncryptionFailure,
+                    "Allowing no GSP"
+                );
+            }
+        }
+        GspType::GspById => {
+            if matches!(guest_state_encryption_policy, GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspKey) {
+                log_op_warn!(
+                    LogOpType::StrictEncryptionFailure,
+                    "Allowing GspById"
+                );
+            }
+        }
+        GspType::GspKey => {
+            if matches!(guest_state_encryption_policy, GuestStateEncryptionPolicy::None | GuestStateEncryptionPolicy::GspById) {
+                log_op_warn!(
+                    LogOpType::StrictEncryptionFailure,
+                    "Allowing GspKey"
+                );
+            }
+        }
+    }
+
 
     // All Underhill VMs use VMGS encryption
     tracing::info!("Unlocking VMGS");
@@ -934,23 +974,7 @@ async fn get_derived_keys(
                 .map_err(GetDerivedKeysError::GetDerivedKeyById)?;
 
         if no_kek && no_gsp {
-            if matches!(
-                guest_state_encryption_policy,
-                GuestStateEncryptionPolicy::GspById | GuestStateEncryptionPolicy::Auto
-            ) {
-                tracing::info!(CVM_ALLOWED, "Using GspById");
-            } else {
-                // Log a warning here to indicate that the VMGS state is out of
-                // sync with the VM's configuration.
-                //
-                // This should only happen if strict encryption policy is
-                // disabled and one of the following is true:
-                // - The VM is configured to have no encryption, but it already
-                //   has GspById encryption.
-                // - The VM is configured to use GspKey, but GspKey is not
-                //   available and GspById is.
-                tracing::warn!(CVM_ALLOWED, "Allowing GspById");
-            };
+            tracing::info!(CVM_ALLOWED, "Using GspById");
 
             // Not required for Id protection
             key_protector_settings.should_write_kp = false;
@@ -1094,20 +1118,7 @@ async fn get_derived_keys(
         }
     }
 
-    if matches!(
-        guest_state_encryption_policy,
-        GuestStateEncryptionPolicy::GspKey | GuestStateEncryptionPolicy::Auto
-    ) {
-        tracing::info!(CVM_ALLOWED, "Using Gsp");
-    } else {
-        // Log a warning here to indicate that the VMGS state is out of
-        // sync with the VM's configuration.
-        //
-        // This should only happen if the VM is configured to have no
-        // encryption or GspById encryption, but it already has GspKey
-        // encryption and strict encryption policy is disabled.
-        tracing::warn!(CVM_ALLOWED, "Allowing Gsp");
-    }
+    tracing::info!(CVM_ALLOWED, "Using Gsp");
 
     Ok(DerivedKeyResult {
         derived_keys: Some(derived_keys),

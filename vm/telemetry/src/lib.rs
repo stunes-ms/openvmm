@@ -17,6 +17,8 @@ pub enum LogOpType {
     DecryptVmgs,
     /// Converting VMGS file from GSP-by-ID to GSP Key encryption
     ConvertEncryptionType,
+    /// VMGS decryption/encryption failed due to encryption policy
+    StrictEncryptionFailure,
     /// Derivation of vTPM primary keys
     VtpmKeysProvision,
     /// Callback to obtain AK certificate
@@ -33,6 +35,19 @@ pub enum LogOpType {
 macro_rules! log_op {
     ($op_type:expr, $($e:expr),*) => {
         tracing::info!(
+            CVM_ALLOWED,
+            op_type = ?$op_type,
+            $($e),*
+        );
+    }
+}
+
+/// Log a point-in-time operation at warning level. op_type is a LogOpType. The
+/// remaining arguments are passed through to the underlying tracing macro.
+#[macro_export]
+macro_rules! log_op_warn {
+    ($op_type:expr, $($e:expr),*) => {
+        tracing::warn!(
             CVM_ALLOWED,
             op_type = ?$op_type,
             $($e),*
