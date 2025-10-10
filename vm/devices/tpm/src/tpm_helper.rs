@@ -3,7 +3,6 @@
 
 //! The module includes the helper functions for sending TPM commands.
 
-use crate::LogOpType;
 use crate::TPM_AZURE_AIK_HANDLE;
 use crate::TPM_GUEST_SECRET_HANDLE;
 use crate::TPM_NV_INDEX_AIK_CERT;
@@ -46,6 +45,9 @@ use crate::tpm20proto::protocol::common::CmdAuth;
 use cvm_tracing::CVM_ALLOWED;
 use inspect::InspectMut;
 use ms_tpm_20_ref::MsTpm20RefPlatform;
+use telemetry::LogOpType;
+use telemetry::log_op_begin;
+use telemetry::log_op_end;
 use thiserror::Error;
 use zerocopy::FromZeros;
 use zerocopy::IntoBytes;
@@ -608,43 +610,25 @@ impl TpmEngineHelper {
                             })?;
 
                             let start_time = std::time::SystemTime::now();
-                            if let Err(error) =
-                                self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert)
-                            {
-                                tracing::error!(
-                                    CVM_ALLOWED,
-                                    op_type = ?LogOpType::NvWrite,
-                                    nv_index = TPM_NV_INDEX_AIK_CERT,
-                                    data_size = cert.len(),
-                                    success = false,
-                                    err = &error as &dyn std::error::Error,
-                                    latency = std::time::SystemTime::now()
-                                        .duration_since(start_time)
-                                        .map_or(0, |d| d.as_millis()),
-                                    "Error writing AKCert TPM NVRAM index"
-                                );
+                            let result = self.nv_write(TPM20_RH_OWNER, None, TPM_NV_INDEX_AIK_CERT, &cert);
 
-                                return Err(TpmHelperError::TpmCommandError {
-                                    command_debug_info: CommandDebugInfo {
-                                        command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(TPM20_RH_OWNER),
-                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                    },
-                                    error,
-                                });
-                            } else {
-                                tracing::info!(
-                                    CVM_ALLOWED,
-                                    op_type = ?LogOpType::NvWrite,
-                                    nv_index = TPM_NV_INDEX_AIK_CERT,
-                                    data_size = cert.len(),
-                                    success = true,
-                                    latency = std::time::SystemTime::now()
-                                        .duration_since(start_time)
-                                        .map_or(0, |d| d.as_millis()),
-                                    "Wrote AKCert TPM NVRAM index"
-                                );
-                            }
+                            log_op_end!(
+                                LogOpType::NvWrite,
+                                result,
+                                start_time,
+                                nv_index = TPM_NV_INDEX_AIK_CERT,
+                                data_size = cert.len(),
+                                "Wrote AKCert TPM NVRAM index"
+                            );
+
+                            result.map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_Write,
+                                    auth_handle: Some(TPM20_RH_OWNER),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
                         }
                     }
                 }
@@ -761,44 +745,27 @@ impl TpmEngineHelper {
                             tracing::info!("Preserve previous AK cert across boot");
 
                             let start_time = std::time::SystemTime::now();
-                            if let Err(error) =
-                                self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert)
-                            {
-                                tracing::error!(
-                                    CVM_ALLOWED,
-                                    op_type = ?LogOpType::NvWrite,
-                                    nv_index = TPM_NV_INDEX_AIK_CERT,
-                                    data_size = cert.len(),
-                                    success = false,
-                                    err = &error as &dyn std::error::Error,
-                                    latency = std::time::SystemTime::now()
-                                        .duration_since(start_time)
-                                        .map_or(0, |d| d.as_millis()),
-                                    "Error rewriting existing AKCert TPM NVRAM index"
-                                );
-                                return Err(TpmHelperError::TpmCommandError {
-                                    command_debug_info: CommandDebugInfo {
-                                        command_code: CommandCodeEnum::NV_Write,
-                                        auth_handle: Some(ReservedHandle(
-                                            TPM_NV_INDEX_AIK_CERT.into(),
-                                        )),
-                                        nv_index: Some(TPM_NV_INDEX_AIK_CERT),
-                                    },
-                                    error,
-                                });
-                            } else {
-                                tracing::info!(
-                                    CVM_ALLOWED,
-                                    op_type = ?LogOpType::NvWrite,
-                                    nv_index = TPM_NV_INDEX_AIK_CERT,
-                                    data_size = cert.len(),
-                                    success = true,
-                                    latency = std::time::SystemTime::now()
-                                        .duration_since(start_time)
-                                        .map_or(0, |d| d.as_millis()),
-                                    "Rewrote existing AKCert TPM NVRAM index"
-                                );
-                            }
+                            let result = self.nv_write(write_auth_handle, auth, TPM_NV_INDEX_AIK_CERT, &cert);
+
+                            log_op_end!(
+                                LogOpType::NvWrite,
+                                result,
+                                start_time,
+                                nv_index = TPM_NV_INDEX_AIK_CERT,
+                                data_size = cert.len(),
+                                "Rewrote existing AKCert TPM NVRAM index"
+                            );
+
+                            result.map_err(|error| TpmHelperError::TpmCommandError {
+                                command_debug_info: CommandDebugInfo {
+                                    command_code: CommandCodeEnum::NV_Write,
+                                    auth_handle: Some(ReservedHandle(
+                                        TPM_NV_INDEX_AIK_CERT.into(),
+                                    )),
+                                    nv_index: Some(TPM_NV_INDEX_AIK_CERT),
+                                },
+                                error,
+                            })?;
                         }
                     }
                 }
@@ -967,45 +934,30 @@ impl TpmEngineHelper {
         }
 
         let start_time = std::time::SystemTime::now();
-        if let Err(error) = self.nv_write(
+        let result = self.nv_write(
             ReservedHandle(nv_index.into()),
             Some(auth_value),
             nv_index,
             &data,
-        ) {
-            tracing::error!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::NvWrite,
-                nv_index,
-                data_size = data.len(),
-                success = false,
-                err = &error as &dyn std::error::Error,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_millis()),
-                "Error writing TPM NVRAM index"
-            );
-            return Err(TpmHelperError::TpmCommandError {
-                command_debug_info: CommandDebugInfo {
-                    command_code: CommandCodeEnum::NV_Write,
-                    auth_handle: Some(ReservedHandle(nv_index.into())),
-                    nv_index: Some(nv_index),
-                },
-                error,
-            });
-        } else {
-            tracing::info!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::NvWrite,
-                nv_index,
-                data_size = data.len(),
-                success = true,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_millis()),
-                "Wrote TPM NVRAM index"
-            );
-        }
+        );
+
+        log_op_end!(
+            LogOpType::NvWrite,
+            result,
+            start_time,
+            nv_index,
+            data_size = data.len(),
+            "Writing TPM NVRAM index"
+        );
+
+        result.map_err(|error| TpmHelperError::TpmCommandError {
+            command_debug_info: CommandDebugInfo {
+                command_code: CommandCodeEnum::NV_Write,
+                auth_handle: Some(ReservedHandle(nv_index.into())),
+                nv_index: Some(nv_index),
+            },
+            error,
+        })?;
 
         Ok(())
     }
@@ -1036,33 +988,42 @@ impl TpmEngineHelper {
 
         let nv_index_size = res.nv_public.nv_public.data_size.get();
         let start_time = std::time::SystemTime::now();
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::BeginNvRead,
+        log_op_begin!(
+            LogOpType::NvRead,
             nv_index,
             data_size = nv_index_size,
             "Reading TPM NVRAM index"
         );
 
-        if let Err(error) = self.nv_read(TPM20_RH_OWNER, nv_index, nv_index_size, data) {
-            tracing::error!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::NvRead,
-                nv_index,
-                data_size = nv_index_size,
-                success = false,
-                err = &error as &dyn std::error::Error,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_millis()),
-                "Error reading TPM NVRAM index"
-            );
+        let result = self.nv_read(TPM20_RH_OWNER, nv_index, nv_index_size, data);
 
-            if let TpmCommandError::TpmCommandFailed { response_code } = error {
-                if response_code == ResponseCode::NvUninitialized as u32 {
-                    Ok(NvIndexState::Uninitialized)
+        log_op_end!(
+            LogOpType::NvRead,
+            result,
+            start_time,
+            nv_index,
+            data_size = nv_index_size,
+            "Read TPM NVRAM index"
+        );
+
+        match result {
+            Err(error) => {
+                if let TpmCommandError::TpmCommandFailed { response_code } = error {
+                    if response_code == ResponseCode::NvUninitialized as u32 {
+                        Ok(NvIndexState::Uninitialized)
+                    } else {
+                        // Unexpected response code
+                        Err(TpmHelperError::TpmCommandError {
+                            command_debug_info: CommandDebugInfo {
+                                command_code: CommandCodeEnum::NV_Read,
+                                auth_handle: Some(TPM20_RH_OWNER),
+                                nv_index: Some(nv_index),
+                            },
+                            error,
+                        })?
+                    }
                 } else {
-                    // Unexpected response code
+                    // Unexpected failure
                     Err(TpmHelperError::TpmCommandError {
                         command_debug_info: CommandDebugInfo {
                             command_code: CommandCodeEnum::NV_Read,
@@ -1072,30 +1033,8 @@ impl TpmEngineHelper {
                         error,
                     })?
                 }
-            } else {
-                // Unexpected failure
-                Err(TpmHelperError::TpmCommandError {
-                    command_debug_info: CommandDebugInfo {
-                        command_code: CommandCodeEnum::NV_Read,
-                        auth_handle: Some(TPM20_RH_OWNER),
-                        nv_index: Some(nv_index),
-                    },
-                    error,
-                })?
             }
-        } else {
-            tracing::info!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::NvRead,
-                nv_index,
-                data_size = nv_index_size,
-                success = true,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_millis()),
-                "Read TPM NVRAM index"
-            );
-            Ok(NvIndexState::Available)
+            Ok(_) => Ok(NvIndexState::Available),
         }
     }
 
@@ -1726,9 +1665,8 @@ impl TpmEngineHelper {
     ) -> Result<(), TpmCommandError> {
         use tpm20proto::protocol::NvWriteCmd;
 
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::BeginNvWrite,
+        log_op_begin!(
+            LogOpType::NvWrite,
             nv_index,
             data_size = data.len(),
             "Writing TPM NVRAM index"

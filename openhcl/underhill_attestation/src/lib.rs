@@ -47,6 +47,10 @@ use secure_key_release::VmgsEncryptionKeys;
 use static_assertions::const_assert_eq;
 use std::fmt::Debug;
 use tee_call::TeeCall;
+use telemetry::log_op;
+use telemetry::log_op_begin;
+use telemetry::log_op_end_err;
+use telemetry::log_op_end_ok;
 use telemetry::LogOpType;
 use thiserror::Error;
 use zerocopy::FromZeros;
@@ -370,14 +374,14 @@ pub async fn initialize_platform_security(
     let vmgs_encrypted: bool = vmgs.is_encrypted();
 
     let start_time = std::time::SystemTime::now();
-    tracing::info!(
+    log_op_begin!(
+        LogOpType::DecryptVmgs,
         ?tcb_version,
         vmgs_encrypted,
-        op_type = ?LogOpType::BeginDecryptVmgs,
         "Deriving keys"
     );
 
-    let derived_keys_result = get_derived_keys(
+    let result = get_derived_keys(
         get,
         tee_call,
         vmgs,
@@ -394,18 +398,15 @@ pub async fn initialize_platform_security(
     )
     .await
     .map_err(|e| {
-        tracing::error!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::DecryptVmgs,
-            success = false,
-            err = &e as &dyn std::error::Error,
-            latency = std::time::SystemTime::now()
-                .duration_since(start_time)
-                .map_or(0, |d| d.as_millis()),
+        log_op_end_err!(
+            LogOpType::DecryptVmgs,
+            e,
+            start_time,
             "Failed to derive keys"
         );
         AttestationErrorInner::GetDerivedKeys(e)
-    })?;
+    });
+    let derived_keys_result = result?;
 
     // All Underhill VMs use VMGS encryption
     tracing::info!("Unlocking VMGS");
@@ -420,14 +421,10 @@ pub async fn initialize_platform_security(
     )
     .await
     {
-        tracing::error!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::DecryptVmgs,
-            success = false,
-            err = &e as &dyn std::error::Error,
-            latency = std::time::SystemTime::now()
-                .duration_since(start_time)
-                .map_or(0, |d| d.as_millis()),
+        log_op_end_err!(
+            LogOpType::DecryptVmgs,
+            e,
+            start_time,
             "Failed to unlock datastore"
         );
         get.event_log_fatal(guest_emulation_transport::api::EventLogId::ATTESTATION_FAILED)
@@ -436,17 +433,15 @@ pub async fn initialize_platform_security(
         Err(AttestationErrorInner::UnlockVmgsDataStore(e))?
     }
 
-    tracing::info!(
-        CVM_ALLOWED,
-        op_type = ?LogOpType::DecryptVmgs,
-        success = true,
+    log_op_end_ok!(
+        LogOpType::DecryptVmgs,
+        start_time,
         decrypt_gsp_type = ?derived_keys_result
             .key_protector_settings
             .decrypt_gsp_type,
         encrypt_gsp_type = ?derived_keys_result
             .key_protector_settings
             .encrypt_gsp_type,
-        latency = std::time::SystemTime::now().duration_since(start_time).map_or(0, |d| d.as_millis()),
         "Unlocked datastore"
     );
 
@@ -972,11 +967,7 @@ async fn get_derived_keys(
 
         derived_keys.ingress = derived_keys_by_id.ingress;
 
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::ConvertEncryptionType,
-            "Converting GSP method."
-        );
+        log_op!(LogOpType::ConvertEncryptionType, "Converting GSP method.");
     }
 
     let egress_seed;

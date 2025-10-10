@@ -50,6 +50,10 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::task::Waker;
 use telemetry::LogOpType;
+use telemetry::log_op_begin;
+use telemetry::log_op_end;
+use telemetry::log_op_end_err;
+use telemetry::log_op_end_ok;
 use thiserror::Error;
 use tpm_helper::CommandDebugInfo;
 use tpm_helper::TpmCommandError;
@@ -587,9 +591,8 @@ impl Tpm {
             // The procedure also generates randomized AK based on the TPM seed
             // and writes the AK into `TPM_AZURE_AIK_HANDLE` NV store.
             let start_time = std::time::SystemTime::now();
-            tracing::info!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::BeginVtpmKeysProvision,
+            log_op_begin!(
+                LogOpType::VtpmKeysProvision,
                 key_type = ?KeyType::AkPub,
                 bios_guid = %self.bios_guid,
                 force_ak_regen,
@@ -599,16 +602,12 @@ impl Tpm {
                 .tpm_engine_helper
                 .create_ak_pub(force_ak_regen)
                 .map_err(|e| {
-                    tracing::error!(
-                        CVM_ALLOWED,
-                        op_type = ?LogOpType::VtpmKeysProvision,
+                    log_op_end_err!(
+                        LogOpType::VtpmKeysProvision,
+                        e,
+                        start_time,
                         key_type = ?KeyType::AkPub,
                         bios_guid = %self.bios_guid,
-                        success = false,
-                        err = &e as &dyn std::error::Error,
-                        latency = std::time::SystemTime::now()
-                            .duration_since(start_time)
-                            .map_or(0, |d| d.as_millis()),
                         "Error creating AKPub key"
                     );
                     TpmErrorKind::CreateAkPublic(e)
@@ -621,50 +620,30 @@ impl Tpm {
             let ak_pub_hash = ak_pub_hasher.finalize();
             self.ak_pub_hash = base64::engine::general_purpose::STANDARD.encode(ak_pub_hash);
 
-            tracing::info!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::VtpmKeysProvision,
+            log_op_end_ok!(
+                LogOpType::VtpmKeysProvision,
+                start_time,
                 key_type = ?KeyType::AkPub,
                 bios_guid = %self.bios_guid,
                 pub_key = self.ak_pub_hash,
-                success = true,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_millis()),
                 "Created AKPub key"
             );
 
             let start_time = std::time::SystemTime::now();
-            tracing::info!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::BeginVtpmKeysProvision,
+            log_op_begin!(
+                LogOpType::VtpmKeysProvision,
                 key_type = ?KeyType::EkPub,
                 "Creating EKPub key"
             );
-            let ek_pub = self.tpm_engine_helper.create_ek_pub().map_err(|e| {
-                tracing::error!(
-                    CVM_ALLOWED,
-                    op_type = ?LogOpType::VtpmKeysProvision,
-                    key_type = ?KeyType::EkPub,
-                    success = false,
-                    err = &e as &dyn std::error::Error,
-                    latency = std::time::SystemTime::now()
-                        .duration_since(start_time)
-                        .map_or(0, |d| d.as_millis()),
-                    "Error creating EKPub key"
-                );
-                TpmErrorKind::CreateEkPublic(e)
-            })?;
-            tracing::info!(
-                CVM_ALLOWED,
-                op_type = ?LogOpType::VtpmKeysProvision,
+            let ek_pub_result = self.tpm_engine_helper.create_ek_pub().map_err(TpmErrorKind::CreateEkPublic);
+            log_op_end!(
+                LogOpType::VtpmKeysProvision,
+                ek_pub_result,
+                start_time,
                 key_type = ?KeyType::EkPub,
-                success = true,
-                latency = std::time::SystemTime::now()
-                    .duration_since(start_time)
-                    .map_or(0, |d| d.as_millis()),
                 "Created EKPub key"
             );
+            let ek_pub = ek_pub_result?;
 
             self.keys = Some(TpmKeys { ak_pub, ek_pub });
             tracing::info!(
@@ -1032,9 +1011,8 @@ impl Tpm {
             return Ok(());
         }
 
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::BeginAkCertProvision,
+        log_op_begin!(
+            LogOpType::AkCertProvision,
             is_renew,
             pub_key = self.ak_pub_hash,
             bios_guid = %self.bios_guid,

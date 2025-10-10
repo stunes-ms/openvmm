@@ -9,32 +9,109 @@
 /// Operation types for VM provisioning telemetry.
 #[derive(Debug)]
 pub enum LogOpType {
-    /// Formatting a VMGS file.
+    /// Formatting a VMGS file
     VmgsProvision,
-    /// Beginning callback to agent to get GSP data.
-    BeginGspCallback,
-    /// Ending callback to agent to get GSP data.
+    /// Callback to agent to get GSP data
     GspCallback,
-    /// Beginning VMGS file decryption.
-    BeginDecryptVmgs,
-    /// Ending VMGS file decryption.
+    /// VMGS file decryption
     DecryptVmgs,
-    /// Converting VMGS file from GSP-by-ID to GSP Key encryption.
+    /// Converting VMGS file from GSP-by-ID to GSP Key encryption
     ConvertEncryptionType,
-    /// Beginning derivation of vTPM primary keys.
-    BeginVtpmKeysProvision,
-    /// Ending derivation of vTPM primary keys.
+    /// Derivation of vTPM primary keys
     VtpmKeysProvision,
-    /// Beginning callback to obtain AK certificate.
-    BeginAkCertProvision,
-    /// Ending callback to obtain AK certificate.
+    /// Callback to obtain AK certificate
     AkCertProvision,
-    /// Beginning write to TPM NVRAM index.
-    BeginNvWrite,
-    /// Ending write to TPM NVRAM index.
+    /// Write to TPM NVRAM index
     NvWrite,
-    /// Beginning read from TPM NVRAM index.
-    BeginNvRead,
-    /// Ending read from TPM NVRAM index.
+    /// Read from TPM NVRAM index
     NvRead,
+}
+
+/// Log a point-in-time operation. op_type is a LogOpType. The remaining
+/// arguments are passed through to the underlying tracing macro.
+#[macro_export]
+macro_rules! log_op {
+    ($op_type:expr, $($e:expr),*) => {
+        tracing::info!(
+            CVM_ALLOWED,
+            op_type = ?$op_type,
+            $($e),*
+        );
+    }
+}
+
+/// Log the beginning of an operation. op_type is a LogOpType. The remaining
+/// arguments are passed through to the underlying tracing macro.
+#[macro_export]
+macro_rules! log_op_begin {
+    ($op_type:expr, $($e:tt)*) => {
+        tracing::info!(
+            CVM_ALLOWED,
+            op_type = format!("Begin{:?}", $op_type),
+            $($e)*
+        );
+    }
+}
+
+/// Log the end of an operation. Logs at info level if result is Ok or at error
+/// level if result is Err. op_type is a LogOpType. start_time is a
+/// std::time::SystemTime indicating when the operation started. The remaining
+/// arguments are passed through to the underlying tracing macro.
+#[macro_export]
+macro_rules! log_op_end {
+    ($op_type:expr, $result:expr, $start_time:expr, $($e:tt)*) => {
+        if let Err(error) = $result.as_ref() {
+            tracing::error!(
+                CVM_ALLOWED,
+                op_type = ?$op_type,
+                success = false,
+                err = error as &dyn std::error::Error,
+                latency = std::time::SystemTime::now().duration_since($start_time).map_or(0, |d| d.as_millis()),
+                $($e)*
+            );
+        } else {
+            tracing::info!(
+                CVM_ALLOWED,
+                op_type = ?$op_type,
+                success = true,
+                latency = std::time::SystemTime::now().duration_since($start_time).map_or(0, |d| d.as_millis()),
+                $($e)*
+            );
+        }
+    }
+}
+
+/// Log the end of an operation that finished successfully. op_type is a
+/// LogOpType. start_time is a std::time::SystemTime indicating when the
+/// operation started. The remaining arguments are passed through to the
+/// underlying tracing macro.
+#[macro_export]
+macro_rules! log_op_end_ok {
+    ($op_type:expr, $start_time:expr, $($e:tt)*) => {
+        tracing::info!(
+            CVM_ALLOWED,
+            op_type = ?$op_type,
+            success = true,
+            latency = std::time::SystemTime::now().duration_since($start_time).map_or(0, |d| d.as_millis()),
+            $($e)*
+        );
+    }
+}
+
+/// Log the end of an operation that finished with an error. op_type is a
+/// LogOpType. err is the error. start_time is a std::time::SystemTime
+/// indicating when the operation started. The remaining arguments are passed
+/// through to the underlying tracing macro.
+#[macro_export]
+macro_rules! log_op_end_err {
+    ($op_type:expr, $err:expr, $start_time:expr, $($e:tt)*) => {
+        tracing::error!(
+            CVM_ALLOWED,
+            op_type = ?$op_type,
+            success = false,
+            err = &$err as &dyn std::error::Error,
+            latency = std::time::SystemTime::now().duration_since($start_time).map_or(0, |d| d.as_millis()),
+            $($e)*
+        );
+    }
 }

@@ -18,6 +18,7 @@ use inspect_counters::Counter;
 use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use telemetry::log_op;
 use telemetry::LogOpType;
 use vmgs_format::EncryptionAlgorithm;
 use vmgs_format::FileAttribute;
@@ -193,9 +194,8 @@ impl Vmgs {
         logger: Option<Arc<dyn VmgsLogger>>,
     ) -> Result<Self, Error> {
         let mut storage = VmgsStorage::new(disk);
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::VmgsProvision,
+        log_op!(
+            LogOpType::VmgsProvision,
             "formatting and initializing VMGS datastore"
         );
         // Errors from validate_file are fatal, as they involve invalid device metadata

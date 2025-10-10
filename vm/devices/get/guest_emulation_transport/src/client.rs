@@ -15,6 +15,8 @@ use mesh::rpc::Rpc;
 use mesh::rpc::RpcSend;
 use std::sync::Arc;
 use telemetry::LogOpType;
+use telemetry::log_op_begin;
+use telemetry::log_op_end_ok;
 use user_driver::DmaClient;
 use vpci::bus_control::VpciBusEvent;
 use zerocopy::IntoBytes;
@@ -350,9 +352,8 @@ impl GuestEmulationTransportClient {
         let start_time = std::time::SystemTime::now();
         getrandom::fill(&mut buffer).expect("rng failure");
 
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::BeginGspCallback,
+        log_op_begin!(
+            LogOpType::GspCallback,
             "Getting guest state protection data"
         );
 
@@ -367,12 +368,9 @@ impl GuestEmulationTransportClient {
             .call(msg::Msg::GuestStateProtection, Box::new(gsp_request))
             .await;
 
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::GspCallback,
-            latency = std::time::SystemTime::now()
-                .duration_since(start_time)
-                .map_or(0, |d| d.as_millis()),
+        log_op_end_ok!(
+            LogOpType::GspCallback,
+            start_time,
             "Got guest state protection data"
         );
 
