@@ -66,6 +66,7 @@ use tpm20proto::NV_INDEX_RANGE_BASE_TCG_ASSIGNED;
 use tpm20proto::ReservedHandle;
 use tpm20proto::TPM20_HT_PERSISTENT;
 use tpm20proto::TPM20_RH_PLATFORM;
+use tracing::info_span;
 use vmcore::device_state::ChangeDeviceState;
 use vmcore::non_volatile_store::NonVolatileStore;
 use vmcore::non_volatile_store::NonVolatileStoreError;
@@ -598,6 +599,7 @@ impl Tpm {
                 force_ak_regen,
                 "Creating AKPub key"
             );
+            let span = info_span!("FOOBAR SPAN Create AKPub key", foo = "BAR", op_type = ?LogOpType::VtpmKeysProvision, pub_key = tracing::field::Empty).entered();
             let (ak_pub, can_renew_ak) = self
                 .tpm_engine_helper
                 .create_ak_pub(force_ak_regen)
@@ -628,6 +630,8 @@ impl Tpm {
                 pub_key = self.ak_pub_hash,
                 "Created AKPub key"
             );
+            span.record("pub_key", self.ak_pub_hash.clone());
+            span.exit();
 
             let start_time = std::time::SystemTime::now();
             log_op_begin!(

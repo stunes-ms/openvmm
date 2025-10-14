@@ -49,11 +49,9 @@ use std::fmt::Debug;
 use tee_call::TeeCall;
 use telemetry::LogOpType;
 use telemetry::log_op;
-use telemetry::log_op_begin;
-use telemetry::log_op_end_err;
-use telemetry::log_op_end_ok;
 use telemetry::log_op_warn;
 use thiserror::Error;
+use tracing::info_span;
 use zerocopy::FromZeros;
 use zerocopy::IntoBytes;
 
@@ -374,13 +372,7 @@ pub async fn initialize_platform_security(
 
     let vmgs_encrypted: bool = vmgs.is_encrypted();
 
-    let start_time = std::time::SystemTime::now();
-    log_op_begin!(
-        LogOpType::DecryptVmgs,
-        ?tcb_version,
-        vmgs_encrypted,
-        "Deriving keys"
-    );
+    let span = info_span!("Deriving keys", CVM_ALLOWED, op_type = ?LogOpType::DecryptVmgs, ?tcb_version, vmgs_encrypted, success = true, err = tracing::field::Empty, decrypt_gsp_type = tracing::field::Empty, encrypt_gsp_type = tracing::field::Empty).entered();
 
     let derived_keys_result = get_derived_keys(
         get,
@@ -399,12 +391,8 @@ pub async fn initialize_platform_security(
     )
     .await
     .map_err(|e| {
-        log_op_end_err!(
-            LogOpType::DecryptVmgs,
-            e,
-            start_time,
-            "Failed to derive keys"
-        );
+        span.record("success", false);
+        span.record("err", &e as &dyn std::error::Error);
         AttestationErrorInner::GetDerivedKeys(e)
     })?;
 
@@ -459,29 +447,30 @@ pub async fn initialize_platform_security(
     )
     .await
     {
-        log_op_end_err!(
-            LogOpType::DecryptVmgs,
-            e,
-            start_time,
-            "Failed to unlock datastore"
-        );
+        span.record("success", false);
+        span.record("err", &e as &dyn std::error::Error);
         get.event_log_fatal(guest_emulation_transport::api::EventLogId::ATTESTATION_FAILED)
             .await;
 
         Err(AttestationErrorInner::UnlockVmgsDataStore(e))?
     }
 
-    log_op_end_ok!(
-        LogOpType::DecryptVmgs,
-        start_time,
-        decrypt_gsp_type = ?derived_keys_result
-            .key_protector_settings
-            .decrypt_gsp_type,
-        encrypt_gsp_type = ?derived_keys_result
-            .key_protector_settings
-            .encrypt_gsp_type,
-        "Unlocked datastore"
+    span.record("success", true);
+    span.record(
+        "decrypt_gsp_type",
+        format!(
+            "{:?}",
+            derived_keys_result.key_protector_settings.decrypt_gsp_type
+        ),
     );
+    span.record(
+        "encrypt_gsp_type",
+        format!(
+            "{:?}",
+            derived_keys_result.key_protector_settings.encrypt_gsp_type
+        ),
+    );
+    span.exit();
 
     let state_refresh_request_from_gsp = derived_keys_result
         .gsp_extended_status_flags

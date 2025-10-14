@@ -12,6 +12,7 @@ use serde::Serialize;
 use serde::Serializer;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::num::NonZeroU64;
@@ -23,6 +24,7 @@ use tracing::Subscriber;
 use tracing::field::Field;
 use tracing::field::Visit;
 use tracing::span::Attributes;
+use tracing::span::Record;
 use tracing_subscriber::Layer;
 use tracing_subscriber::registry::LookupSpan;
 use zerocopy::FromZeros;
@@ -172,6 +174,22 @@ fn get_guid_field(fields: &dyn Recordable, name: &'static str) -> Option<Guid> {
     visitor.guid
 }
 
+struct FieldsVisitor<'a> {
+    fields: &'a mut HashMap<String, String>,
+}
+
+impl Visit for FieldsVisitor<'_> {
+    fn record_debug(&mut self, field: &Field, value: &dyn Debug) {
+        self.fields
+            .insert(field.name().to_string(), format!("{:?}", value));
+    }
+
+    fn record_str(&mut self, field: &Field, value: &str) {
+        self.fields
+            .insert(field.name().to_string(), value.to_string());
+    }
+}
+
 struct SpanFields<'a>(&'a Attributes<'a>);
 
 #[derive(Clone)]
@@ -183,6 +201,7 @@ struct SpanData {
     related_activity_id: Option<Guid>,
     correlation_id: Option<Guid>,
     sent_enter: bool,
+    fields: HashMap<String, String>,
 }
 
 impl Serialize for SpanFields<'_> {
@@ -337,6 +356,12 @@ where
             (None, get_guid_field(attrs, "correlation_id"))
         };
 
+        let mut fields = HashMap::new();
+        let mut fields_visitor = FieldsVisitor {
+            fields: &mut fields,
+        };
+        attrs.record(&mut fields_visitor);
+
         let mut span_data = SpanData {
             start_time: time,
             activity_id: generate_tracing_luid(time, id.into_u64()),
@@ -345,6 +370,7 @@ where
             enter_time: None,
             active_time: Duration::ZERO,
             sent_enter: false,
+            fields,
         };
 
         let span_message = SpanMessage {
@@ -381,6 +407,23 @@ where
         ctx.span(id).unwrap().extensions_mut().insert(span_data);
     }
 
+    fn on_record(
+        &self,
+        id: &Id,
+        values: &Record<'_>,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        let span = ctx.span(id).unwrap();
+        let mut extensions = span.extensions_mut();
+        let span_data: &mut SpanData = extensions.get_mut::<SpanData>().unwrap();
+
+        let mut fields_visitor = FieldsVisitor {
+            fields: &mut span_data.fields,
+        };
+
+        values.record(&mut fields_visitor);
+    }
+
     fn on_close(&self, id: Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let time = pal_async::timer::Instant::now();
         let span = ctx.span(&id).unwrap();
@@ -400,7 +443,7 @@ where
             level: ctx.metadata(&id).unwrap().level().as_str(),
             activity_id: span_data.activity_id,
             related_activity_id: span_data.related_activity_id.unwrap_or(Guid::ZERO),
-            fields: None::<()>,
+            fields: Some(span_data.fields.clone()),
             time_taken_ns: Some(time_taken.as_nanos() as u64),
             time_active_ns: Some(span_data.active_time.as_nanos() as u64),
         };
