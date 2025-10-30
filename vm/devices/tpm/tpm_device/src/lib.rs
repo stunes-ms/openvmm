@@ -259,6 +259,7 @@ pub struct Tpm {
     #[inspect(skip)]
     mmio_region: Vec<(&'static str, RangeInclusive<u64>)>,
     allow_ak_cert_renewal: bool,
+    always_renew_ak_cert: bool,
 
     // For logging
     bios_guid: Guid,
@@ -437,6 +438,7 @@ impl Tpm {
             io_region,
             mmio_region,
             allow_ak_cert_renewal: false,
+            always_renew_ak_cert: false,
             bios_guid,
             ak_pub_hash: [0; SHA_256_OUTPUT_SIZE_BYTES],
 
@@ -495,6 +497,7 @@ impl Tpm {
     ) -> Result<(), TpmError> {
         use ms_tpm_20_ref::NvError;
         let mut force_ak_regen = false;
+        let mut legacy_size = false;
         let fixup_16k_ak_cert;
 
         // Check whether or not we need to pave-over the blank TPM with our
@@ -527,14 +530,15 @@ impl Tpm {
                     return Err(TpmErrorKind::ResetTpmWithState(e).into());
                 }
 
+                legacy_size = blob.len() == LEGACY_VTPM_SIZE;
+
                 // If this is a confidential VM or has a vTPM blob size that indicates that it was
                 // HCL-provisioned, regenerate the AK from TPM seeds. This prevents an attack where
                 // the VTL0 admin can replace the AK and get an AKCert for it.
-                force_ak_regen =
-                    self.refresh_tpm_seeds || blob.len() != LEGACY_VTPM_SIZE || is_confidential_vm;
+                force_ak_regen = self.refresh_tpm_seeds || !legacy_size || is_confidential_vm;
 
                 // If this is a small vTPM blob, potentially fixup the AK cert.
-                fixup_16k_ak_cert = blob.len() == LEGACY_VTPM_SIZE;
+                fixup_16k_ak_cert = legacy_size;
             } else {
                 // No fixup is required, because there is no existing NVRAM blob.
                 fixup_16k_ak_cert = false;
@@ -701,8 +705,20 @@ impl Tpm {
                 )
                 .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
 
-            // Initialize `TPM_NV_INDEX_AIK_CERT` if `ak_cert_type` requires AK cert and the cert is not pre-provisioned.
-            if !matches!(self.ak_cert_type, TpmAkCertType::TrustedPreProvisionedOnly) {
+            // If the existing AKCert index is platform-defined and this appears
+            // to be an HCL-provisioned vTPM, always renew the AKCert from OpenHCL.
+            if self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size {
+                self.always_renew_ak_cert = true;
+            }
+
+            // Initialize `TPM_NV_INDEX_AIK_CERT` if `ak_cert_type` requires AK
+            // cert and the cert is not pre-provisioned, or if the existing
+            // index is platform-defined (in which case the guest can't renew it).
+            if !matches!(
+                self.ak_cert_type,
+                TpmAkCertType::TrustedPreProvisionedOnly(_)
+            ) || self.always_renew_ak_cert
+            {
                 self.get_ak_cert(false)?;
             }
 
@@ -1465,7 +1481,8 @@ impl MmioIntercept for Tpm {
                         TpmAkCertType::Trusted(_)
                             | TpmAkCertType::HwAttested(_)
                             | TpmAkCertType::SwAttested(_)
-                    ) {
+                    ) || self.always_renew_ak_cert
+                    {
                         if let Some(CommandCodeEnum::NV_Read) = cmd_header {
                             self.refresh_device_attestation_data_on_nv_read()
                         }

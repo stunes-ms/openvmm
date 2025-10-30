@@ -2665,7 +2665,9 @@ async fn new_underhill_vm(
                 {
                     TpmAkCertTypeResource::Trusted(request_ak_cert)
                 }
-                AttestationType::Host => TpmAkCertTypeResource::TrustedPreProvisionedOnly,
+                AttestationType::Host => {
+                    TpmAkCertTypeResource::TrustedPreProvisionedOnly(request_ak_cert)
+                }
             }
         };
 

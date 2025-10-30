@@ -55,7 +55,7 @@ pub enum TpmAkCertTypeResource {
     None,
     /// Expects an AK cert that is not hardware-attested
     /// to be pre-provisioned. Used by TVM
-    TrustedPreProvisionedOnly,
+    TrustedPreProvisionedOnly(Resource<RequestAkCertKind>),
     /// Authorized AK cert that is not hardware-attested.
     /// Used by TVM
     Trusted(Resource<RequestAkCertKind>),

@@ -86,8 +86,14 @@ impl AsyncResolveResource<ChipsetDeviceHandleKind, TpmDeviceHandle> for TpmDevic
                     .map_err(ResolveTpmError::ResolveRequestAkCert)?
                     .0,
             ),
-            TpmAkCertTypeResource::TrustedPreProvisionedOnly => {
-                TpmAkCertType::TrustedPreProvisionedOnly
+            TpmAkCertTypeResource::TrustedPreProvisionedOnly(request_ak_cert) => {
+                TpmAkCertType::TrustedPreProvisionedOnly(
+                    resolver
+                        .resolve(request_ak_cert, &())
+                        .await
+                        .map_err(ResolveTpmError::ResolveRequestAkCert)?
+                        .0,
+                )
             }
             TpmAkCertTypeResource::None => TpmAkCertType::None,
         };

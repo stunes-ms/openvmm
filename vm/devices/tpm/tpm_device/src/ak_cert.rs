@@ -13,7 +13,7 @@ pub enum TpmAkCertType {
     None,
     /// Expects an AK cert that is not hardware-attested
     /// to be pre-provisioned. Used by TVM
-    TrustedPreProvisionedOnly,
+    TrustedPreProvisionedOnly(Arc<dyn RequestAkCert>),
     /// Authorized AK cert that is not hardware-attested.
     /// Used by TVM
     Trusted(Arc<dyn RequestAkCert>),
@@ -34,7 +34,7 @@ impl TpmAkCertType {
             TpmAkCertType::HwAttested(helper) => Some(helper),
             TpmAkCertType::SwAttested(helper) => Some(helper),
             TpmAkCertType::Trusted(helper) => Some(helper),
-            TpmAkCertType::TrustedPreProvisionedOnly => None,
+            TpmAkCertType::TrustedPreProvisionedOnly(helper) => Some(helper),
             TpmAkCertType::None => None,
         }
     }
@@ -43,7 +43,7 @@ impl TpmAkCertType {
         match self {
             TpmAkCertType::HwAttested(_) | TpmAkCertType::SwAttested(_) => true,
             TpmAkCertType::Trusted(_)
-            | TpmAkCertType::TrustedPreProvisionedOnly
+            | TpmAkCertType::TrustedPreProvisionedOnly(_)
             | TpmAkCertType::None => false,
         }
     }
