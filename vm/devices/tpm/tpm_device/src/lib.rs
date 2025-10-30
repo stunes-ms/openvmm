@@ -711,7 +711,14 @@ impl Tpm {
             // OpenHCL.
             self.handle_ak_cert_renewal = match self.ak_cert_type {
                 TpmAkCertType::TrustedPreProvisionedOnly(_) => {
-                    self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size
+                    let handle = self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size;
+                    if handle {
+                        tracing::info!(
+                            CVM_ALLOWED,
+                            "overriding attempt_ak_cert_callback flag; handling AKCert renewal"
+                        );
+                    }
+                    handle
                 }
                 TpmAkCertType::None => false,
                 _ => true,
