@@ -966,16 +966,11 @@ impl<E: TpmEngine> TpmEngineHelper<E> {
 
     /// Check if the AKCert NV index exists and has the platform_create attribute.
     pub fn has_platform_akcert_index(&mut self) -> bool {
-        if let Ok(res) = self.find_nv_index(TPM_NV_INDEX_AIK_CERT) {
-            if let Some(read_reply) = res {
-                let nv_bits = TpmaNvBits::from(read_reply.nv_public.nv_public.attributes.0.get());
-                nv_bits.nv_platformcreate()
-            } else {
-                false
-            }
-        } else {
-            false
-        }
+        self.find_nv_index(TPM_NV_INDEX_AIK_CERT).is_ok_and(|res| {
+            res.is_some_and(|reply| {
+                TpmaNvBits::from(reply.nv_public.nv_public.attributes.0.get()).nv_platformcreate()
+            })
+        })
     }
 
     /// Check if the nv index is present using NV_ReadPublic command.
