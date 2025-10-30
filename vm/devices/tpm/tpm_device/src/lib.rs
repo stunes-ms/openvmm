@@ -259,7 +259,7 @@ pub struct Tpm {
     #[inspect(skip)]
     mmio_region: Vec<(&'static str, RangeInclusive<u64>)>,
     allow_ak_cert_renewal: bool,
-    always_renew_ak_cert: bool,
+    handle_ak_cert_renewal: bool,
 
     // For logging
     bios_guid: Guid,
@@ -438,7 +438,7 @@ impl Tpm {
             io_region,
             mmio_region,
             allow_ak_cert_renewal: false,
-            always_renew_ak_cert: false,
+            handle_ak_cert_renewal: false,
             bios_guid,
             ak_pub_hash: [0; SHA_256_OUTPUT_SIZE_BYTES],
 
@@ -705,20 +705,19 @@ impl Tpm {
                 )
                 .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
 
-            // If the existing AKCert index is platform-defined and this appears
-            // to be an HCL-provisioned vTPM, always renew the AKCert from OpenHCL.
-            if self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size {
-                self.always_renew_ak_cert = true;
-            }
+            // If TpmAkCertType is one that should be handled by OpenHCL, or if
+            // the existing AKCert index is platform-defined and this appears to
+            // be an HCL-provisioned vTPM, then handle AKCert renewal from
+            // OpenHCL.
+            self.handle_ak_cert_renewal = match self.ak_cert_type {
+                TpmAkCertType::TrustedPreProvisionedOnly(_) => {
+                    self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size
+                }
+                TpmAkCertType::None => false,
+                _ => true,
+            };
 
-            // Initialize `TPM_NV_INDEX_AIK_CERT` if `ak_cert_type` requires AK
-            // cert and the cert is not pre-provisioned, or if the existing
-            // index is platform-defined (in which case the guest can't renew it).
-            if !matches!(
-                self.ak_cert_type,
-                TpmAkCertType::TrustedPreProvisionedOnly(_)
-            ) || self.always_renew_ak_cert
-            {
+            if self.handle_ak_cert_renewal {
                 self.get_ak_cert(false)?;
             }
 
@@ -1476,13 +1475,7 @@ impl MmioIntercept for Tpm {
                         "executing guest tpm cmd",
                     );
 
-                    if matches!(
-                        self.ak_cert_type,
-                        TpmAkCertType::Trusted(_)
-                            | TpmAkCertType::HwAttested(_)
-                            | TpmAkCertType::SwAttested(_)
-                    ) || self.always_renew_ak_cert
-                    {
+                    if self.handle_ak_cert_renewal {
                         if let Some(CommandCodeEnum::NV_Read) = cmd_header {
                             self.refresh_device_attestation_data_on_nv_read()
                         }
