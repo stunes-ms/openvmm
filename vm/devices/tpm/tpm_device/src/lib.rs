@@ -705,22 +705,32 @@ impl Tpm {
                 )
                 .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
 
-            // If TpmAkCertType is one that should be handled by OpenHCL, or if
-            // the existing AKCert index is platform-defined and this appears to
-            // be an HCL-provisioned vTPM, then handle AKCert renewal from
-            // OpenHCL.
+            // Determine whether OpenHCL should handle renewing the AKCert.
             self.handle_ak_cert_renewal = match self.ak_cert_type {
-                TpmAkCertType::TrustedPreProvisionedOnly(_) => {
-                    let handle = self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size;
-                    if handle {
-                        tracing::info!(
-                            CVM_ALLOWED,
-                            "overriding attempt_ak_cert_callback flag; handling AKCert renewal"
-                        );
+                TpmAkCertType::Trusted(_, control_renewal) => {
+                    if let Some(handle) = control_renewal {
+                        // If TpmAkCertType::Trusted has the optional bool that
+                        // controls AKCert renewal, follow that.
+                        handle
+                    } else {
+                        // Otherwise, if the existing AKCert index is platform-
+                        // defined and this appears to be an HCL-provisioned
+                        // vTPM, then handle AKCert renewal from OpenHCL.
+                        let handle =
+                            self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size;
+                        if handle {
+                            tracing::info!(
+                                CVM_ALLOWED,
+                                "overriding attempt_ak_cert_callback flag; handling AKCert renewal"
+                            );
+                        }
+                        handle
                     }
-                    handle
                 }
+                // If there's no AKCert, then don't handle renewal.
                 TpmAkCertType::None => false,
+                // If TpmAkCertType is one that should always be handled by
+                // OpenHCL, then handle AKCert renewal.
                 _ => true,
             };
 
