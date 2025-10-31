@@ -2042,7 +2042,7 @@ mod tests {
             monotonic_timer,
             false,
             false,
-            TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper)),
+            TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), Some(true)),
             None,
             None,
             false,
