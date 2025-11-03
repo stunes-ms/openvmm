@@ -2660,22 +2660,17 @@ async fn new_underhill_vm(
                     TpmAkCertTypeResource::HwAttested(request_ak_cert)
                 }
                 AttestationType::Vbs => TpmAkCertTypeResource::SwAttested(request_ak_cert),
-                AttestationType::Host
-                    if dps
-                        .general
+                AttestationType::Host => TpmAkCertTypeResource::Trusted(
+                    request_ak_cert,
+                    dps.general
                         .management_vtl_features
-                        .control_ak_cert_provisioning() =>
-                {
-                    TpmAkCertTypeResource::Trusted(
-                        request_ak_cert,
-                        Some(
+                        .control_ak_cert_provisioning()
+                        .then(|| {
                             dps.general
                                 .management_vtl_features
-                                .attempt_ak_cert_callback(),
-                        ),
-                    )
-                }
-                AttestationType::Host => TpmAkCertTypeResource::Trusted(request_ak_cert, None),
+                                .attempt_ak_cert_callback()
+                        }),
+                ),
             }
         };
 
