@@ -1270,7 +1270,7 @@ async fn new_underhill_vm(
             tracing::info!("using HCL_ATTEMPT_AK_CERT_CALLBACK={value} from cmdline");
             dps.general
                 .management_vtl_features
-                .set_control_ak_cert_callback(true);
+                .set_control_ak_cert_provisioning(true);
             dps.general
                 .management_vtl_features
                 .set_attempt_ak_cert_callback(value);
