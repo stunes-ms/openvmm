@@ -16,6 +16,7 @@ pub mod ak_cert;
 pub mod logger;
 mod recover;
 pub mod resolver;
+use tpm_lib::AllocateNvIndicesParams;
 use tpm_lib::CommandDebugInfo;
 use tpm_lib::TpmCommandError;
 use tpm_lib::TpmEngine;
@@ -703,9 +704,12 @@ impl Tpm {
                 .tpm_engine_helper
                 .allocate_guest_attestation_nv_indices(
                     auth_value,
-                    !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
-                    self.ak_cert_type.attested(),
-                    fixup_16k_ak_cert,
+                    AllocateNvIndicesParams {
+                        preserve_ak_cert: !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
+                        support_attestation_report: self.ak_cert_type.attested(),
+                        mitigate_legacy_akcert: fixup_16k_ak_cert,
+                        create_if_missing: large_vtpm_blob,
+                    },
                 )
             {
                 tracing::error!(
