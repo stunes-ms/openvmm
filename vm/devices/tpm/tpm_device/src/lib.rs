@@ -95,8 +95,9 @@ const AK_CERT_RENEW_PERIOD: std::time::Duration = std::time::Duration::new(24 * 
 // 2 seconds
 const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 
-// 16kB: vtpmservice provisions a 16kB blob for the vTPM; HCL/OpenHCL provisions a 32k blob
+// 16kB and 32kB: vtpmservice provisions a 16kB blob for the vTPM; HCL/OpenHCL provisions a 32k blob
 const LEGACY_VTPM_SIZE: usize = 16384;
+const LARGE_VTPM_SIZE: usize = 32768;
 
 /// Operation types for provisioning telemetry.
 #[expect(clippy::enum_variant_names)]
@@ -332,8 +333,6 @@ pub enum TpmErrorKind {
     CreateAkPublic(#[source] tpm_lib::Error),
     #[error("failed to create ek public")]
     CreateEkPublic(#[source] tpm_lib::Error),
-    #[error("failed to allocate guest attestation nv indices")]
-    AllocateGuestAttestationNvIndices(#[source] tpm_lib::Error),
     #[error("failed to read from nv index")]
     ReadFromNvIndex(#[source] tpm_lib::Error),
     #[error("failed to write to nv index")]
@@ -497,7 +496,7 @@ impl Tpm {
     ) -> Result<(), TpmError> {
         use ms_tpm_20_ref::NvError;
         let mut force_ak_regen = false;
-        let mut legacy_size = false;
+        let large_vtpm_blob;
         let fixup_16k_ak_cert;
 
         // Check whether or not we need to pave-over the blank TPM with our
@@ -530,18 +529,22 @@ impl Tpm {
                     return Err(TpmErrorKind::ResetTpmWithState(e).into());
                 }
 
-                legacy_size = blob.len() == LEGACY_VTPM_SIZE;
-
                 // If this is a confidential VM or has a vTPM blob size that indicates that it was
                 // HCL-provisioned, regenerate the AK from TPM seeds. This prevents an attack where
                 // the VTL0 admin can replace the AK and get an AKCert for it.
-                force_ak_regen = self.refresh_tpm_seeds || !legacy_size || is_confidential_vm;
+                force_ak_regen =
+                    self.refresh_tpm_seeds || blob.len() != LEGACY_VTPM_SIZE || is_confidential_vm;
 
                 // If this is a small vTPM blob, potentially fixup the AK cert.
-                fixup_16k_ak_cert = legacy_size;
+                fixup_16k_ak_cert = blob.len() == LEGACY_VTPM_SIZE;
+
+                large_vtpm_blob = blob.len() >= LARGE_VTPM_SIZE;
             } else {
                 // No fixup is required, because there is no existing NVRAM blob.
                 fixup_16k_ak_cert = false;
+                // This is a brand-new vTPM and will get provisioned with at
+                // least 32kB of storage.
+                large_vtpm_blob = true;
             }
         }
 
@@ -696,14 +699,21 @@ impl Tpm {
             // `TPM_RC_HIERARCHY` (0c0290285) error code would return.
             // It means the Nvram index space needs to be allocated before clearing the
             // tpm hierarchy control. NV index value can be rewritten later.
-            self.tpm_engine_helper
+            if let Err(e) = self
+                .tpm_engine_helper
                 .allocate_guest_attestation_nv_indices(
                     auth_value,
                     !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
                     self.ak_cert_type.attested(),
                     fixup_16k_ak_cert,
                 )
-                .map_err(TpmErrorKind::AllocateGuestAttestationNvIndices)?;
+            {
+                tracing::error!(
+                    CVM_ALLOWED,
+                    err = &e as &dyn std::error::Error,
+                    "error defining guest attestation NV indices"
+                );
+            }
 
             // Determine whether OpenHCL should handle renewing the AKCert.
             self.handle_ak_cert_renewal = match self.ak_cert_type {
@@ -717,7 +727,7 @@ impl Tpm {
                         // defined and this appears to be an HCL-provisioned
                         // vTPM, then handle AKCert renewal from OpenHCL.
                         let handle =
-                            self.tpm_engine_helper.has_platform_akcert_index() && !legacy_size;
+                            self.tpm_engine_helper.has_platform_akcert_index() && large_vtpm_blob;
                         if handle {
                             tracing::info!(
                                 CVM_ALLOWED,
