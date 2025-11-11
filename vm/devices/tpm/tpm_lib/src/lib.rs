@@ -2378,8 +2378,15 @@ mod tests {
 
             restart_tpm_engine(&mut tpm_engine_helper, true, true);
 
-            let result = tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(AUTH_VALUE, true, false, false);
+            let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+                AUTH_VALUE,
+                AllocateNvIndicesParams {
+                    preserve_ak_cert: true,
+                    support_attestation_report: false,
+                    mitigate_legacy_akcert: false,
+                    create_if_missing: true,
+                },
+            );
             assert!(result.is_ok());
 
             // Ensure ak cert nv index becomes uninitialized
@@ -2414,8 +2421,15 @@ mod tests {
             );
             assert!(matches!(result.unwrap(), NvIndexState::Unallocated));
 
-            let result = tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(AUTH_VALUE, true, false, false);
+            let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+                AUTH_VALUE,
+                AllocateNvIndicesParams {
+                    preserve_ak_cert: true,
+                    support_attestation_report: false,
+                    mitigate_legacy_akcert: false,
+                    create_if_missing: true,
+                },
+            );
             assert!(result.is_ok());
 
             // Ensure only ak cert index remains present but uninitialized
@@ -2468,8 +2482,15 @@ mod tests {
             );
             assert!(matches!(result.unwrap(), NvIndexState::Unallocated));
 
-            let result = tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(AUTH_VALUE, true, false, false);
+            let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+                AUTH_VALUE,
+                AllocateNvIndicesParams {
+                    preserve_ak_cert: true,
+                    support_attestation_report: false,
+                    mitigate_legacy_akcert: false,
+                    create_if_missing: true,
+                },
+            );
             assert!(result.is_ok());
 
             // Ensure only ak cert index remains available
@@ -2533,8 +2554,15 @@ mod tests {
             );
             assert!(matches!(result.unwrap(), NvIndexState::Unallocated));
 
-            let result = tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(AUTH_VALUE, false, false, false);
+            let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+                AUTH_VALUE,
+                AllocateNvIndicesParams {
+                    preserve_ak_cert: false,
+                    support_attestation_report: false,
+                    mitigate_legacy_akcert: false,
+                    create_if_missing: true,
+                },
+            );
             assert!(result.is_ok());
 
             // Ensure read to fail given that the ak cert index is re-created and data is not preserved
@@ -2587,8 +2615,15 @@ mod tests {
             );
             assert!(matches!(result.unwrap(), NvIndexState::Unallocated));
 
-            let result = tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(AUTH_VALUE, false, true, false);
+            let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+                AUTH_VALUE,
+                AllocateNvIndicesParams {
+                    preserve_ak_cert: false,
+                    support_attestation_report: true,
+                    mitigate_legacy_akcert: false,
+                    create_if_missing: true,
+                },
+            );
             assert!(result.is_ok());
 
             // Ensure read to fail given that the ak cert index is re-created and data is not preserved
@@ -2663,8 +2698,15 @@ mod tests {
             );
             assert!(matches!(result.unwrap(), NvIndexState::Available));
 
-            let result = tpm_engine_helper
-                .allocate_guest_attestation_nv_indices(AUTH_VALUE, false, true, false);
+            let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+                AUTH_VALUE,
+                AllocateNvIndicesParams {
+                    preserve_ak_cert: false,
+                    support_attestation_report: true,
+                    mitigate_legacy_akcert: false,
+                    create_if_missing: true,
+                },
+            );
             assert!(result.is_ok());
 
             // Expect read to return Ok(false) given that the nv index is re-created and data is not preserved
@@ -2686,8 +2728,15 @@ mod tests {
         let mut tpm_engine_helper = create_tpm_engine_helper();
         restart_tpm_engine(&mut tpm_engine_helper, false, true);
 
-        let result =
-            tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, true, true, false);
+        let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+            AUTH_VALUE,
+            AllocateNvIndicesParams {
+                preserve_ak_cert: true,
+                support_attestation_report: true,
+                mitigate_legacy_akcert: false,
+                create_if_missing: true,
+            },
+        );
         assert!(result.is_ok());
 
         let result = tpm_engine_helper.find_nv_index(TPM_NV_INDEX_AIK_CERT);
@@ -2920,8 +2969,15 @@ mod tests {
         assert!(matches!(result.unwrap(), NvIndexState::Available));
 
         // Ensure allocate_guest_attestation_nv_indices with preserve_ak_cert = true preserves the ak cert data
-        let result =
-            tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, true, false, false);
+        let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+            AUTH_VALUE,
+            AllocateNvIndicesParams {
+                preserve_ak_cert: true,
+                support_attestation_report: false,
+                mitigate_legacy_akcert: false,
+                create_if_missing: true,
+            },
+        );
         assert!(result.is_ok());
 
         // Ensure nv index has the same size
@@ -3823,8 +3879,15 @@ mod tests {
 
         // Test allocating a platform-defined AKCert index and mitigating it back to owner-defined.
 
-        let result =
-            tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, false, true, false);
+        let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+            AUTH_VALUE,
+            AllocateNvIndicesParams {
+                preserve_ak_cert: false,
+                support_attestation_report: true,
+                mitigate_legacy_akcert: false,
+                create_if_missing: true,
+            },
+        );
         assert!(result.is_ok());
 
         let result = tpm_engine_helper
@@ -3851,8 +3914,15 @@ mod tests {
 
         // TPM has a platform-defined AKCert index and a mitigation marker. This should restore
         // the owner-defined AKCert index.
-        let result =
-            tpm_engine_helper.allocate_guest_attestation_nv_indices(AUTH_VALUE, false, true, true);
+        let result = tpm_engine_helper.allocate_guest_attestation_nv_indices(
+            AUTH_VALUE,
+            AllocateNvIndicesParams {
+                preserve_ak_cert: false,
+                support_attestation_report: true,
+                mitigate_legacy_akcert: true,
+                create_if_missing: true,
+            },
+        );
         assert!(result.is_ok());
 
         let result = tpm_engine_helper
