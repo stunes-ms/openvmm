@@ -496,7 +496,7 @@ impl Tpm {
         is_confidential_vm: bool,
     ) -> Result<(), TpmError> {
         use ms_tpm_20_ref::NvError;
-        let mut force_ak_regen = false;
+        let force_ak_regen;
         let large_vtpm_blob;
         let fixup_16k_ak_cert;
 
@@ -541,6 +541,8 @@ impl Tpm {
 
                 large_vtpm_blob = blob.len() >= LARGE_VTPM_SIZE;
             } else {
+                // Don't need to force-regen the AK if there is no existing NVRAM.
+                force_ak_regen = false;
                 // No fixup is required, because there is no existing NVRAM blob.
                 fixup_16k_ak_cert = false;
                 // This is a brand-new vTPM and will get provisioned with at
@@ -730,26 +732,21 @@ impl Tpm {
                         // Otherwise, if the existing AKCert index is platform-
                         // defined and this appears to be an HCL-provisioned
                         // vTPM, then handle AKCert renewal from OpenHCL.
-                        let handle =
-                            self.tpm_engine_helper.has_platform_akcert_index() && large_vtpm_blob;
-                        if handle {
-                            tracing::info!(
-                                CVM_ALLOWED,
-                                "overriding attempt_ak_cert_callback flag; handling AKCert renewal"
-                            );
-                        }
-                        handle
+                        self.tpm_engine_helper.has_platform_akcert_index() && large_vtpm_blob
                     }
                 }
                 // If there's no AKCert, then don't handle renewal.
                 TpmAkCertType::None => false,
                 // If TpmAkCertType is one that should always be handled by
                 // OpenHCL, then handle AKCert renewal.
-                _ => true,
+                TpmAkCertType::HwAttested(_) | TpmAkCertType::SwAttested(_) => true,
             };
 
             if self.handle_ak_cert_renewal {
+                tracing::info!(CVM_ALLOWED, "handling AKCert renewal");
                 self.get_ak_cert(false)?;
+            } else {
+                tracing::info!(CVM_ALLOWED, "will not handle AKCert renewal");
             }
 
             // Initialize `TPM_NV_INDEX_ATTESTATION_REPORT` if `ak_cert_type` supports attestation
