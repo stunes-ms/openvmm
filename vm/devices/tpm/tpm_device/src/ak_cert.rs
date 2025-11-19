@@ -36,6 +36,8 @@ impl TpmAkCertType {
         }
     }
 
+    /// Returns true if this AKCert type is attested, either with a TEE
+    /// attestation report or a software-based VM attestation report.
     pub fn attested(&self) -> bool {
         match self {
             TpmAkCertType::HwAttested(_) | TpmAkCertType::SwAttested(_) => true,

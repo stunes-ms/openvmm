@@ -96,9 +96,11 @@ const AK_CERT_RENEW_PERIOD: std::time::Duration = std::time::Duration::new(24 * 
 // 2 seconds
 const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 
-// 16kB and 32kB: vtpmservice provisions a 16kB blob for the vTPM; HCL/OpenHCL provisions a 32k blob
-const LEGACY_VTPM_SIZE: usize = 16384;
-const LARGE_VTPM_SIZE: usize = 32768;
+// 16kB and 32kB: These are the sizes of the blob that gets provisioned for the
+// vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
+// blob.
+const LEGACY_VTPM_SIZE: usize = 16 * 1024 * 1024;
+const STANDARD_VTPM_SIZE: usize = 32 * 1024 * 1024;
 
 /// Operation types for provisioning telemetry.
 #[expect(clippy::enum_variant_names)]
@@ -496,13 +498,15 @@ impl Tpm {
         is_confidential_vm: bool,
     ) -> Result<(), TpmError> {
         use ms_tpm_20_ref::NvError;
-        let force_ak_regen;
-        let large_vtpm_blob;
-        let fixup_16k_ak_cert;
+        struct TpmQuirks {
+            force_ak_regen: bool,
+            large_vtpm_blob: bool,
+            fixup_16k_ak_cert: bool,
+        }
 
-        // Check whether or not we need to pave-over the blank TPM with our
-        // existing nvmem state.
-        {
+        let quirks = {
+            // Check whether or not we need to pave-over the blank TPM with our
+            // existing nvmem state.
             let existing_nvmem_blob = (self.rt.nvram_store)
                 .restore()
                 .await
@@ -530,26 +534,37 @@ impl Tpm {
                     return Err(TpmErrorKind::ResetTpmWithState(e).into());
                 }
 
-                // If this is a confidential VM or has a vTPM blob size that indicates that it was
-                // HCL-provisioned, regenerate the AK from TPM seeds. This prevents an attack where
-                // the VTL0 admin can replace the AK and get an AKCert for it.
-                force_ak_regen =
-                    self.refresh_tpm_seeds || blob.len() != LEGACY_VTPM_SIZE || is_confidential_vm;
+                TpmQuirks {
+                    // If this is a confidential VM or has a vTPM blob size that indicates that it was
+                    // HCL-provisioned, regenerate the AK from TPM seeds. This prevents an attack where
+                    // the VTL0 admin can replace the AK and get an AKCert for it.
+                    force_ak_regen: self.refresh_tpm_seeds
+                        || blob.len() != LEGACY_VTPM_SIZE
+                        || is_confidential_vm,
 
-                // If this is a small vTPM blob, potentially fixup the AK cert.
-                fixup_16k_ak_cert = blob.len() == LEGACY_VTPM_SIZE;
+                    // If this is a small vTPM blob, potentially fixup the AK cert.
+                    fixup_16k_ak_cert: blob.len() == LEGACY_VTPM_SIZE,
 
-                large_vtpm_blob = blob.len() >= LARGE_VTPM_SIZE;
+                    large_vtpm_blob: blob.len() >= STANDARD_VTPM_SIZE,
+                }
             } else {
-                // Don't need to force-regen the AK if there is no existing NVRAM.
-                force_ak_regen = false;
-                // No fixup is required, because there is no existing NVRAM blob.
-                fixup_16k_ak_cert = false;
-                // This is a brand-new vTPM and will get provisioned with at
-                // least 32kB of storage.
-                large_vtpm_blob = true;
+                TpmQuirks {
+                    // Don't need to force-regen the AK if there is no existing NVRAM.
+                    force_ak_regen: false,
+                    // No fixup is required, because there is no existing NVRAM blob.
+                    fixup_16k_ak_cert: false,
+                    // This is a brand-new vTPM and will get provisioned with at
+                    // least 32kB of storage.
+                    large_vtpm_blob: true,
+                }
             }
-        }
+        };
+
+        let TpmQuirks {
+            force_ak_regen,
+            fixup_16k_ak_cert,
+            large_vtpm_blob,
+        } = quirks;
 
         self.tpm_engine_helper
             .initialize_tpm_engine()
@@ -723,17 +738,16 @@ impl Tpm {
 
             // Determine whether OpenHCL should handle renewing the AKCert.
             self.handle_ak_cert_renewal = match self.ak_cert_type {
-                TpmAkCertType::Trusted(_, control_renewal) => {
-                    if let Some(handle) = control_renewal {
-                        // If TpmAkCertType::Trusted has the optional bool that
-                        // controls AKCert renewal, follow that.
-                        handle
-                    } else {
-                        // Otherwise, if the existing AKCert index is platform-
-                        // defined and this appears to be an HCL-provisioned
-                        // vTPM, then handle AKCert renewal from OpenHCL.
-                        self.tpm_engine_helper.has_platform_akcert_index() && large_vtpm_blob
-                    }
+                TpmAkCertType::Trusted(_, Some(should_handle)) => {
+                    // If TpmAkCertType::Trusted has the optional bool that
+                    // controls AKCert renewal, follow that.
+                    should_handle
+                }
+                TpmAkCertType::Trusted(_, _) => {
+                    // Otherwise, if the existing AKCert index is platform-
+                    // defined and this appears to be an HCL-provisioned
+                    // vTPM, then handle AKCert renewal from OpenHCL.
+                    self.tpm_engine_helper.has_platform_akcert_index() && large_vtpm_blob
                 }
                 // If there's no AKCert, then don't handle renewal.
                 TpmAkCertType::None => false,
