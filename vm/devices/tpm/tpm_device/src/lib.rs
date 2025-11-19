@@ -99,8 +99,8 @@ const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 // 16kB and 32kB: These are the sizes of the blob that gets provisioned for the
 // vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
 // blob.
-const LEGACY_VTPM_SIZE: usize = 16 * 1024 * 1024;
-const STANDARD_VTPM_SIZE: usize = 32 * 1024 * 1024;
+const LEGACY_VTPM_SIZE: usize = 16 * 1024;
+const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
 /// Operation types for provisioning telemetry.
 #[expect(clippy::enum_variant_names)]
