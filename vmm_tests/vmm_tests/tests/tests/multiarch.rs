@@ -624,6 +624,11 @@ async fn clear_vmgs(
     Ok(())
 }
 
+// Disable this test for now since default boot always attempt
+// will get enabled automatically in OpenHCL.
+// TODO: re-enable this test if the OpenHCL override is removed
+/*
+
 /// Verify that UEFI fails to boot if invalid boot entries exist
 ///
 /// This test exists to ensure we are not getting a false positive for
@@ -651,3 +656,5 @@ async fn boot_expect_fail(
 
     Ok(())
 }
+
+*/
