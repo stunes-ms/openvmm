@@ -222,10 +222,11 @@ open_enum! {
     #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
     pub enum VmgsProvisioner: u32 {
         HCL = 1,
-        HOST_AGENT_VMGSTOOL = 2,
-        CPS_VMGSTOOL_CVM = 3,
-        CPS_VMGSTOOL_TVM = 4,
-        HCL_POST_PROVISIONING = 5,
+        OPENHCL = 2,
+        HOST_AGENT_VMGSTOOL = 3,
+        CPS_VMGSTOOL_CVM = 4,
+        CPS_VMGSTOOL_TVM = 5,
+        HCL_POST_PROVISIONING = 6,
     }
 }
 
@@ -244,7 +245,8 @@ pub struct ProvisioningMarker {
     pub vtpm_nvram_size: u32,
     pub vtpm_akcert_size: u32,
     pub vtpm_akcert_attrs: u32,
-    pub _reserved2: [u8; 996],
+    pub hcl_version: [u8; 40], // OpenHCL: string representation of commit hash
+    pub _reserved2: [u8; 956],
 }
 
 // Size of the provisioning marker.

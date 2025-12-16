@@ -1751,9 +1751,14 @@ async fn new_underhill_vm(
 
     if let Some((_, ref mut vmgs)) = vmgs {
         if vmgs.was_provisioned_this_boot() {
+            let mut rev: [u8; 40] = [0; 40];
+            let rev_bytes = build_info::get().scm_revision().as_bytes();
+            let rev_len = rev_bytes.len().min(40);
+            rev[..rev_len].copy_from_slice(&rev_bytes[..rev_len]);
+
             let marker = ProvisioningMarker {
                 marker_version: vmgs_format::PROVISIONING_MARKER_CURRENT_VERSION,
-                provisioner: VmgsProvisioner::HCL,
+                provisioner: VmgsProvisioner::OPENHCL,
                 reset_by_gsl_flag: (matches!(
                     dps.general.guest_state_lifetime,
                     GuestStateLifetime::Reprovision
@@ -1765,6 +1770,7 @@ async fn new_underhill_vm(
                 vtpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
                 vtpm_akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
                 vtpm_akcert_attrs: tpm_protocol::platform_akcert_attributes().into(),
+                hcl_version: rev,
                 ..FromZeros::new_zeroed()
             };
 
