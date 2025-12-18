@@ -424,6 +424,17 @@ pub mod runtime_claims {
         }
     }
 
+    /// Claims for VMGS provenance.
+    #[derive(Clone, Debug, Deserialize, Serialize, MeshPayload)]
+    #[serde(rename_all = "kebab-case")]
+    pub struct VmgsProvisioner {
+        /// VMGS ID
+        pub id: String,
+        /// Signer (root cert thumbprint + leaf subject name as a decentralized
+        /// identifier)
+        pub signer: String,
+    }
+
     /// VM configuration to be included in the `RuntimeClaims`.
     #[derive(Clone, Debug, Deserialize, Serialize, MeshPayload)]
     #[serde(rename_all = "kebab-case")]
@@ -448,5 +459,8 @@ pub mod runtime_claims {
         /// VM id
         #[serde(rename = "vmUniqueId")]
         pub vm_unique_id: String,
+        /// VMGS provenance data
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub vmgs_provisioner: Option<VmgsProvisioner>,
     }
 }

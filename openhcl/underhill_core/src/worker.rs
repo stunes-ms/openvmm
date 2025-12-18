@@ -2014,6 +2014,33 @@ async fn new_underhill_vm(
         tracing::warn!(CVM_ALLOWED, "confidential debug enabled");
     }
 
+    // Get VMGS provenance claims.
+    let prov_claims = if let Some((_, vmgs)) = vmgs.as_mut() {
+        let prov_info = vmgs.get_file_info(vmgs::FileId::PROVENANCE_DOC);
+        if prov_info.is_ok() {
+            let file = vmgs
+                .read_file(vmgs::FileId::PROVENANCE_DOC)
+                .await
+                .context("failed to read provenance doc")?;
+            let claims = underhill_attestation::get_provenance_claims(&file).await;
+            match claims {
+                Ok(claims) => Some(claims),
+                Err(err) => {
+                    tracing::warn!(
+                        CVM_ALLOWED,
+                        error = &err as &dyn std::error::Error,
+                        "failed to get provenance claims"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     // Create the `AttestationVmConfig` from `dps`, which will be used in
     // - stateful mode (the attestation is not suppressed)
     // - stateless mode (isolated VM with attestation suppressed)
@@ -2036,6 +2063,7 @@ async fn new_underhill_vm(
             && dps.general.vpci_boot_enabled
             && isolation.is_isolated(),
         vm_unique_id: dps.general.bios_guid.to_string(),
+        vmgs_provisioner: prov_claims.clone(),
     };
 
     let tee_call: Option<Box<dyn tee_call::TeeCall>> = match isolation {
@@ -2101,6 +2129,26 @@ async fn new_underhill_vm(
             }
         }
     };
+
+    // Check VMGS ID from provisioner
+    if let Some(prov) = prov_claims {
+        if let Some(vmgs) = vmgs.as_mut() {
+            let vmgsid_file = vmgs
+                .1
+                .read_file(vmgs::FileId::PLATFORM_SEED)
+                .await
+                .context("failed to read VMGSID seed doc")?;
+            let derived_vmgsid = underhill_attestation::derive_vmgsid(&vmgsid_file).await?;
+            if !derived_vmgsid.to_string().eq_ignore_ascii_case(&prov.id) {
+                tracing::error!(CVM_ALLOWED, "provisioning VMGSID mismatch");
+                anyhow::bail!("provisioning VMGSID mismatch");
+            }
+        } else {
+            // VMGS existed earlier but now it doesn't: should not happen.
+            tracing::error!(CVM_ALLOWED, "VMGS not found after reading provenance data");
+            anyhow::bail!("VMGS not found after reading provenance data");
+        }
+    }
 
     let mut resolver = ResourceResolver::new();
     // Make the GET available for other resources.

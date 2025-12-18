@@ -90,6 +90,11 @@ impl X509Certificate {
         )
         .map(Self)
     }
+
+    /// Get the subject name from an X.509 certificate.
+    pub fn subject_name(&self) -> Option<Result<String, X509Error>> {
+        self.0.subject_name()
+    }
 }
 
 #[cfg(test)]
@@ -152,5 +157,13 @@ mod tests {
         let reparsed = X509Certificate::from_der(&der).unwrap();
         let pubkey = reparsed.public_key().unwrap();
         assert!(reparsed.verify(&pubkey).unwrap());
+    }
+
+    #[test]
+    fn subject_name() {
+        let key = crate::rsa::RsaKeyPair::generate(2048).unwrap();
+        let cert = build_test_cert(&key);
+        let sn = cert.subject_name().unwrap().unwrap();
+        assert_eq!(sn, "test.example.com");
     }
 }

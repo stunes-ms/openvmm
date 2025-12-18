@@ -89,4 +89,18 @@ impl X509CertificateInner {
         builder.sign(&key.0.0, openssl::hash::MessageDigest::sha256())?;
         Ok(X509CertificateInner(builder.build()))
     }
+
+    pub fn subject_name(&self) -> Option<Result<String, X509Error>> {
+        let sn = self
+            .0
+            .subject_name()
+            .entries_by_nid(openssl::nid::Nid::COMMONNAME)
+            .next();
+        sn.map(|s| {
+            s.data()
+                .as_utf8()
+                .map(|u| u.to_string())
+                .map_err(|e| err(e, "decoding subject name"))
+        })
+    }
 }

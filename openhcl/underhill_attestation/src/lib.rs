@@ -23,10 +23,13 @@ pub use igvm_attest::Error as IgvmAttestError;
 pub use igvm_attest::IgvmAttestRequestHelper;
 pub use igvm_attest::ak_cert::parse_response as parse_ak_cert_response;
 
+use crate::jwt::JwtError;
+use crate::jwt::JwtHelper;
 use ::vmgs::EncryptionAlgorithm;
 use ::vmgs::GspType;
 use ::vmgs::Vmgs;
 use crypto::rsa::RsaKeyPair;
+use crypto::sha_256::sha_256;
 use cvm_tracing::CVM_ALLOWED;
 use get_protocol::dps_json::GuestStateEncryptionPolicy;
 use guest_emulation_transport::GuestEmulationTransportClient;
@@ -40,6 +43,7 @@ use key_protector::GetKeysFromKeyProtectorError;
 use key_protector::KeyProtectorExt as _;
 use mesh::MeshPayload;
 use openhcl_attestation_protocol::igvm_attest::get::runtime_claims::AttestationVmConfig;
+use openhcl_attestation_protocol::igvm_attest::get::runtime_claims::VmgsProvisioner;
 use openhcl_attestation_protocol::vmgs::AES_GCM_KEY_LENGTH;
 use openhcl_attestation_protocol::vmgs::AGENT_DATA_MAX_SIZE;
 use openhcl_attestation_protocol::vmgs::HardwareKeyProtector;
@@ -47,6 +51,8 @@ use openhcl_attestation_protocol::vmgs::KeyProtector;
 use openhcl_attestation_protocol::vmgs::SecurityProfile;
 use pal_async::local::LocalDriver;
 use secure_key_release::VmgsEncryptionKeys;
+use serde::Deserialize;
+use serde::Serialize;
 use static_assertions::const_assert_eq;
 use std::fmt::Debug;
 use tee_call::TeeCall;
@@ -79,6 +85,8 @@ enum AttestationErrorInner {
     UnlockVmgsDataStore(#[source] UnlockVmgsDataStoreError),
     #[error("failed to read guest secret key from vmgs")]
     ReadGuestSecretKey(#[source] vmgs::ReadFromVmgsError),
+    #[error("failed to verify VMGS provenance")]
+    Provenance(#[source] ProvenanceError),
 }
 
 #[derive(Debug, Error)]
@@ -157,6 +165,32 @@ enum PersistAllKeyProtectorsError {
     WriteKeyProtector(#[source] vmgs::WriteToVmgsError),
     #[error("failed to read key protector by id to vmgs")]
     WriteKeyProtectorById(#[source] vmgs::WriteToVmgsError),
+}
+
+#[derive(Debug, Error)]
+enum ProvenanceError {
+    #[error("failed to decode provenance doc")]
+    DecodeProvenanceDoc(#[source] JwtError),
+    #[error("failed to verify JWT signature")]
+    VerifySignature(#[source] JwtError),
+    #[error("invalid signature")]
+    InvalidSignature,
+    #[error("invalid leaf certificate subject")]
+    InvalidLeafCertSubject,
+    #[error("invalid root certificate")]
+    InvalidRootCert,
+    #[error("failed to convert VMGSID data")]
+    InvalidVmgsidData(std::str::Utf8Error),
+    #[error("failed to parse VMGSID data")]
+    ParseVmgsidData,
+    #[error("failed to decode VMGSID data")]
+    DecodeVmgsidData(hex::FromHexError),
+    #[error("failed to parse VMGSID into GUID")]
+    ParseVmgsid(guid::ParseError),
+    #[error("X509 certificate error")]
+    X509Error(crypto::x509::X509Error),
+    #[error("SP800-108 KDF error")]
+    KdfError(crypto::kbkdf::KbkdfError),
 }
 
 // Operation types for provisioning telemetry.
@@ -1409,6 +1443,91 @@ async fn persist_all_key_protectors(
     Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ProvenanceJwtBody {
+    #[serde(rename = "VMGSID")]
+    pub vmgsid: String,
+}
+
+/// Read the VMGS provenance doc and produce runtime claims
+pub async fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, Error> {
+    let jwt = JwtHelper::<ProvenanceJwtBody>::from(prov_file)
+        .map_err(ProvenanceError::DecodeProvenanceDoc)
+        .map_err(AttestationErrorInner::Provenance)?;
+    let valid = jwt
+        .verify_signature()
+        .map_err(ProvenanceError::VerifySignature)
+        .map_err(AttestationErrorInner::Provenance)?;
+    if valid {
+        let cert_chain = jwt
+            .cert_chain()
+            .map_err(ProvenanceError::DecodeProvenanceDoc)
+            .map_err(AttestationErrorInner::Provenance)?;
+        let leaf = &cert_chain[0];
+
+        let sn = leaf
+            .subject_name()
+            .ok_or(AttestationErrorInner::Provenance(
+                ProvenanceError::InvalidLeafCertSubject,
+            ))?
+            .map_err(ProvenanceError::X509Error)
+            .map_err(AttestationErrorInner::Provenance)?;
+
+        let root = cert_chain.last().ok_or(AttestationErrorInner::Provenance(
+            ProvenanceError::InvalidRootCert,
+        ))?;
+        let digest = sha_256(
+            &(root
+                .to_der()
+                .map_err(ProvenanceError::X509Error)
+                .map_err(AttestationErrorInner::Provenance)?),
+        );
+        let signer = format!(
+            "did:x509:0:sha256:{}:subject:{}",
+            hex::encode(digest),
+            sn.to_string()
+        );
+        let vmgsid = jwt.jwt.body.vmgsid;
+
+        Ok(VmgsProvisioner { id: vmgsid, signer })
+    } else {
+        Err(AttestationErrorInner::Provenance(
+            ProvenanceError::InvalidSignature,
+        ))?
+    }
+}
+
+/// Derive the expected VMGSID from the encrypted seed data.
+pub async fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
+    let seed_file_str = str::from_utf8(seed_file)
+        .map_err(ProvenanceError::InvalidVmgsidData)
+        .map_err(AttestationErrorInner::Provenance)?;
+    let [seed_hex, label_hex, context_hex, _seed_len_str] = seed_file_str
+        .split(',')
+        .collect::<Vec<&str>>()
+        .try_into()
+        .map_err(|_| ProvenanceError::ParseVmgsidData)
+        .map_err(AttestationErrorInner::Provenance)?;
+
+    let seed = hex::decode(seed_hex)
+        .map_err(ProvenanceError::DecodeVmgsidData)
+        .map_err(AttestationErrorInner::Provenance)?;
+    let label = hex::decode(label_hex)
+        .map_err(ProvenanceError::DecodeVmgsidData)
+        .map_err(AttestationErrorInner::Provenance)?;
+    let context = hex::decode(context_hex)
+        .map_err(ProvenanceError::DecodeVmgsidData)
+        .map_err(AttestationErrorInner::Provenance)?;
+
+    let key = crypto::kbkdf::kbkdf_hmac_sha256(&seed, &context, &label, 32)
+        .map_err(ProvenanceError::KdfError)
+        .map_err(AttestationErrorInner::Provenance)?;
+
+    Ok(Guid::from_slice(&key[0..16])
+        .map_err(ProvenanceError::ParseVmgsid)
+        .map_err(AttestationErrorInner::Provenance)?)
+}
+
 /// Module that implements the mock [`TeeCall`] for testing purposes
 #[cfg(test)]
 pub mod test_utils {
@@ -1672,6 +1791,7 @@ mod tests {
             tpm_persisted: true,
             filtered_vpci_devices_allowed: false,
             vm_unique_id: String::new(),
+            vmgs_provisioner: None,
         }
     }
 
@@ -2789,5 +2909,25 @@ mod tests {
         .await;
 
         assert!(result.is_err());
+    }
+
+    #[async_test]
+    async fn test_get_provenance_claims() {
+        // Test JWT: not a valid credential or secret for anything.
+        const PROVENANCE_DOC: &'static str = include_str!("../test_data/valid_jwt");
+        let doc = PROVENANCE_DOC.trim();
+        let claims = get_provenance_claims(doc.as_bytes()).await.unwrap();
+        assert_eq!(claims.id, "03020100-0504-0706-0809-0a0b0c0d0e0f");
+        assert_eq!(
+            claims.signer,
+            "did:x509:0:sha256:ea76599d86897382aa519ff2bc0fa6b9c15d60da2ebe53e72139cd317b0797ed:subject:fican.cvmprovisioningservice.core.azure-test.net"
+        );
+    }
+
+    #[async_test]
+    async fn test_derive_vmgsid() {
+        const SEED_DOC: &'static str = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F,4C6162656C5F435053,436F6E746578745F564D4753,32";
+        let vmgsid = derive_vmgsid(SEED_DOC.as_bytes()).await.unwrap();
+        assert_eq!(vmgsid, guid::guid!("2d7f58b0-e611-669f-1af4-8b4a619147c8"));
     }
 }
