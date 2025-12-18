@@ -50,4 +50,4 @@ workspace = true
 
 [package.metadata.xtask.unused-deps]
 # Needed for the base64-serde macros.
-ignored = ["serde"]
+ignored = []
