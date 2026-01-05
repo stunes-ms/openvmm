@@ -233,6 +233,9 @@ open_enum! {
 /// Current version of the VMGS provisioning diagnostic marker.
 pub const PROVISIONING_MARKER_CURRENT_VERSION: u32 = 1;
 
+/// Length of HCL version field.
+pub const HCL_VERSION_LENGTH: usize = 40;
+
 /// Diagnostic marker that describes how a VMGS file was provisioned.
 #[repr(C, packed)]
 #[derive(Debug, IntoBytes, Immutable, KnownLayout, FromBytes)]
@@ -245,7 +248,8 @@ pub struct ProvisioningMarker {
     pub vtpm_nvram_size: u32,
     pub vtpm_akcert_size: u32,
     pub vtpm_akcert_attrs: u32,
-    pub hcl_version: [u8; 40], // OpenHCL: string representation of commit hash
+    // provisioner == OPENHCL: string representation of commit hash; otherwise undefined
+    pub hcl_version: [u8; HCL_VERSION_LENGTH],
     pub _reserved2: [u8; 956],
 }
 

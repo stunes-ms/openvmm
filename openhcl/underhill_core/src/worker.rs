@@ -1751,21 +1751,23 @@ async fn new_underhill_vm(
 
     if let Some((_, ref mut vmgs)) = vmgs {
         if vmgs.was_provisioned_this_boot() {
-            let mut rev: [u8; 40] = [0; 40];
+            let mut rev = [0u8; vmgs_format::HCL_VERSION_LENGTH];
             let rev_bytes = build_info::get().scm_revision().as_bytes();
             let rev_len = rev_bytes.len().min(40);
             rev[..rev_len].copy_from_slice(&rev_bytes[..rev_len]);
 
+            let reset_by_gsl_flag = (matches!(
+                dps.general.guest_state_lifetime,
+                GuestStateLifetime::Reprovision
+            ) || (matches!(
+                dps.general.guest_state_lifetime,
+                GuestStateLifetime::ReprovisionOnFailure
+            ) && vmgs.was_formatted_on_failure())) as u8;
+
             let marker = ProvisioningMarker {
                 marker_version: vmgs_format::PROVISIONING_MARKER_CURRENT_VERSION,
                 provisioner: VmgsProvisioner::OPENHCL,
-                reset_by_gsl_flag: (matches!(
-                    dps.general.guest_state_lifetime,
-                    GuestStateLifetime::Reprovision
-                ) || (matches!(
-                    dps.general.guest_state_lifetime,
-                    GuestStateLifetime::ReprovisionOnFailure
-                ) && vmgs.was_formatted_on_failure())) as u8,
+                reset_by_gsl_flag,
                 vtpm_version: tpm_protocol::TPM_DEFAULT_VERSION,
                 vtpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
                 vtpm_akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
