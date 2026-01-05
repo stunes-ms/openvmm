@@ -5,6 +5,7 @@
 
 #![cfg_attr(not(test), expect(dead_code))]
 
+use crate::jwt::JwtAlgorithm;
 use crate::jwt::JwtHeader;
 use base64::Engine;
 use openhcl_attestation_protocol::igvm_attest::akv;
@@ -73,7 +74,7 @@ fn generate_x5c(private: &PKey<Private>) -> Vec<String> {
 /// Generate the base64 encoded components of a JWT.
 pub fn generate_base64_encoded_jwt_components(private: &PKey<Private>) -> (String, String, String) {
     let header = JwtHeader {
-        alg: "RS256".to_string(),
+        alg: JwtAlgorithm::RS256,
         x5c: generate_x5c(private),
     };
     // Header is a base64-url encoded JSON object

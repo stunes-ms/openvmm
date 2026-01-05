@@ -61,8 +61,6 @@ pub(crate) enum JwtSignatureVerificationError {
     VerifierUpdate(#[source] openssl::error::ErrorStack),
     #[error("Verifier verify() failed")]
     VerifierVerify(#[source] openssl::error::ErrorStack),
-    #[error("Unsupported signing algorithm {0:?}")]
-    UnsupportedSigningAlgorithm(String),
 }
 
 #[derive(Debug, Error)]
@@ -79,11 +77,18 @@ pub(crate) enum CertificateChainValidationError {
     CertChainSubjectIssuerMismatch,
 }
 
+/// JWT signature algorithms.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) enum JwtAlgorithm {
+    /// RSA signature with SHA-256
+    RS256,
+}
+
 /// Subset of a standard JWT header.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct JwtHeader {
     /// Indicates the signing algorithm. "none" indicates the JWT is unsigned.
-    pub alg: String,
+    pub alg: JwtAlgorithm,
     /// The certificate chain used to validate the signature if the JWT is signed.
     #[serde(default)]
     pub x5c: Vec<String>,
@@ -157,6 +162,7 @@ impl<B: DeserializeOwned> JwtHelper<B> {
         })
     }
 
+    /// Get the cert chain from the JWT's x5c header.
     pub fn cert_chain(&self) -> Result<Vec<X509>, JwtError> {
         self.jwt
             .header
@@ -171,6 +177,8 @@ impl<B: DeserializeOwned> JwtHelper<B> {
             .collect::<Result<Vec<_>, _>>()
     }
 
+    /// Verify the JWT's signature. Ok(true) means a valid signature; Ok(false)
+    /// or Err indicate an invalid signature or other error.
     pub fn verify_signature(&self) -> Result<bool, JwtError> {
         let alg = &self.jwt.header.alg;
         let pkey = validate_cert_chain(&self.cert_chain()?)?;
@@ -224,13 +232,13 @@ fn string_from_utf8_preserve_invalid_bytes(bytes: &[u8]) -> String {
 
 /// Helper function for JWT signature validation using OpenSSL.
 fn verify_jwt_signature(
-    alg: &str,
+    alg: &JwtAlgorithm,
     pkey: &PKey<openssl::pkey::Public>,
     payload: &[u8],
     signature: &[u8],
 ) -> Result<bool, JwtSignatureVerificationError> {
     let result = match alg {
-        "RS256" => {
+        JwtAlgorithm::RS256 => {
             if pkey.id() != openssl::pkey::Id::RSA {
                 Err(JwtSignatureVerificationError::InvalidKeyType {
                     key_type: pkey.id(),
@@ -250,9 +258,6 @@ fn verify_jwt_signature(
                 .verify(signature)
                 .map_err(JwtSignatureVerificationError::VerifierVerify)?
         }
-        alg => Err(JwtSignatureVerificationError::UnsupportedSigningAlgorithm(
-            alg.to_string(),
-        ))?,
     };
 
     Ok(result)
@@ -380,7 +385,7 @@ mod tests {
         let jwt = format!("{}.{}.{}", header, body, signature);
         let jwt = JwtHelper::<akv::AkvKeyReleaseJwtBody>::from(jwt.as_bytes()).unwrap();
 
-        assert_eq!(jwt.jwt.header.alg, "RS256");
+        assert_eq!(jwt.jwt.header.alg, JwtAlgorithm::RS256);
 
         let key_hsm = akv::AkvKeyReleaseKeyBlob {
             ciphertext: CIPHERTEXT.as_bytes().to_vec(),
@@ -434,25 +439,14 @@ mod tests {
         signer.update(payload.as_bytes()).unwrap();
         let signature = signer.sign_to_vec().unwrap();
 
-        let verification_succeeded =
-            verify_jwt_signature("RS256", &public, payload.as_bytes(), signature.as_slice())
-                .unwrap();
+        let verification_succeeded = verify_jwt_signature(
+            &JwtAlgorithm::RS256,
+            &public,
+            payload.as_bytes(),
+            signature.as_slice(),
+        )
+        .unwrap();
         assert!(verification_succeeded);
-    }
-
-    #[test]
-    fn fail_to_verify_non_rs256_signature() {
-        let rsa_key = openssl::rsa::Rsa::generate(2048).unwrap();
-        let pem = rsa_key.public_key_to_pem().unwrap();
-        let public = PKey::public_key_from_pem(&pem).unwrap();
-
-        let outcome = verify_jwt_signature("HS256", &public, &[], &[]);
-
-        assert!(outcome.is_err());
-        assert_eq!(
-            outcome.unwrap_err().to_string(),
-            "Unsupported signing algorithm \"HS256\"".to_string()
-        );
     }
 
     #[test]
@@ -461,7 +455,7 @@ mod tests {
         let pem = dsa_key.public_key_to_pem().unwrap();
         let public = PKey::public_key_from_pem(&pem).unwrap();
 
-        let outcome = verify_jwt_signature("RS256", &public, &[], &[]);
+        let outcome = verify_jwt_signature(&JwtAlgorithm::RS256, &public, &[], &[]);
 
         assert!(outcome.is_err());
         assert_eq!(
