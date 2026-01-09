@@ -246,7 +246,7 @@ pub enum AttestationType {
 /// If successful, return a bool indicating whether igvmagent requested a
 /// state refresh. If unsuccessful, return an error and a bool indicating
 /// whether to retry.
-async fn unlock_vmgs(
+async fn try_unlock_vmgs(
     get: &GuestEmulationTransportClient,
     bios_guid: Guid,
     attestation_vm_config: &AttestationVmConfig,
@@ -496,7 +496,7 @@ pub async fn initialize_platform_security(
     let state_refresh_request_from_gsp = loop {
         tracing::info!(CVM_ALLOWED, attempt = i, "attempt to unlock VMGS file");
 
-        let response = unlock_vmgs(
+        let response = try_unlock_vmgs(
             get,
             bios_guid,
             attestation_vm_config,
