@@ -513,7 +513,7 @@ pub async fn initialize_platform_security(
             Ok(b) => break b,
             Err((e, false)) => Err(e)?,
             Err((e, true)) => {
-                if i >= max_retry {
+                if i >= max_retry - 1 {
                     Err(e)?
                 }
             }
