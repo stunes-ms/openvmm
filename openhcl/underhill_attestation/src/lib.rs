@@ -172,7 +172,7 @@ enum LogOpType {
 /// Label used by `derive_key`
 const VMGS_KEY_DERIVE_LABEL: &[u8; 7] = b"VMGSKEY";
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 struct Keys {
     ingress: [u8; AES_GCM_KEY_LENGTH],
     decrypt_egress: Option<[u8; AES_GCM_KEY_LENGTH]>,
@@ -209,7 +209,6 @@ pub struct HostAttestationSettings {
 }
 
 /// The return values of [`get_derived_keys`].
-#[derive(Clone, Copy)]
 struct DerivedKeyResult {
     /// Optional derived keys.
     derived_keys: Option<Keys>,
@@ -509,18 +508,19 @@ pub async fn initialize_platform_security(
             &mut key_protector_by_id,
         )
         .await;
+
         match response {
             Ok(b) => break b,
             Err((e, false)) => Err(e)?,
             Err((e, true)) => {
-                if i < max_retry - 1 {
-                    // Stall on retries
-                    timer.sleep(std::time::Duration::new(1, 0)).await;
-                } else {
+                if i >= max_retry {
                     Err(e)?
                 }
             }
         }
+
+        // Stall on retries
+        timer.sleep(std::time::Duration::new(1, 0)).await;
         i += 1;
     };
 
