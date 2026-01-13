@@ -277,7 +277,7 @@ async fn try_unlock_vmgs(
     };
 
     let retry = match skr_response {
-        Ok(_) => true,
+        Ok(_) => false,
         Err((_, r)) => r,
     };
 
