@@ -8045,7 +8045,6 @@ dependencies = [
  "vmcore",
  "vmgs",
  "vmgs_broker",
- "vmgs_format",
  "vmgs_resources",
  "vmm_core",
  "vmm_core_defs",
@@ -9271,7 +9270,6 @@ dependencies = [
  "inspect",
  "open_enum",
  "static_assertions",
- "tpm_protocol",
  "zerocopy 0.8.27",
 ]
 

@@ -1756,7 +1756,9 @@ async fn new_underhill_vm(
         if vmgs.was_provisioned_this_boot() {
             let reason = if dps.general.guest_state_lifetime == GuestStateLifetime::Reprovision {
                 VmgsProvisioningReason::Request
-            } else if dps.general.guest_state_lifetime == GuestStateLifetime::ReprovisionOnFailure && vmgs.was_formatted_on_failure() {
+            } else if dps.general.guest_state_lifetime == GuestStateLifetime::ReprovisionOnFailure
+                && vmgs.was_formatted_on_failure()
+            {
                 VmgsProvisioningReason::Failure
             } else {
                 VmgsProvisioningReason::Empty
@@ -1769,7 +1771,10 @@ async fn new_underhill_vm(
                 tpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
                 akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
                 // TODO: make sure it gets "0x"
-                akcert_attrs: format!("{:x}", Into::<u32>::into(tpm_protocol::platform_akcert_attributes())),
+                akcert_attrs: format!(
+                    "{:x}",
+                    Into::<u32>::into(tpm_protocol::platform_akcert_attributes())
+                ),
                 hcl_version: build_info::get().scm_revision().to_string(),
             };
 
@@ -1799,8 +1804,11 @@ async fn new_underhill_vm(
             //    ..FromZeros::new_zeroed()
             //};
 
-            vmgs.write_file(vmgs::FileId::PROVISIONING_MARKER, serde_json::to_string(&marker)?.as_bytes())
-                .await?;
+            vmgs.write_file(
+                vmgs::FileId::PROVISIONING_MARKER,
+                serde_json::to_string(&marker)?.as_bytes(),
+            )
+            .await?;
         }
     }
 
