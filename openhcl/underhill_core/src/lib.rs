@@ -74,10 +74,42 @@ use pal_async::task::Spawn;
 use profiler_worker::ProfilerWorker;
 #[cfg(feature = "profiler")]
 use profiler_worker::ProfilerWorkerParameters;
+use serde::Deserialize;
+use serde::Serialize;
 use std::time::Duration;
 use vmsocket::VmAddress;
 use vmsocket::VmListener;
 use vnc_worker_defs::VncParameters;
+
+// TODO: serde rename
+#[derive(Debug, Serialize, Deserialize)]
+pub enum VmgsProvisioner {
+    Unknown,
+    HCL,
+    OpenHCL,
+    CpsVmgstoolCvm,
+    CpsVmgstoolTvm,
+    HclPostProvisioning,
+}
+
+// TODO: serde rename
+#[derive(Debug, Serialize, Deserialize)]
+pub enum VmgsProvisioningReason {
+    Empty,
+    Failure,
+    Request,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProvisioningMarker {
+    pub provisioner: VmgsProvisioner,
+    pub reason: VmgsProvisioningReason,
+    pub tpm_version: String,
+    pub tpm_nvram_size: usize,
+    pub akcert_size: usize,
+    pub akcert_attrs: String,
+    pub hcl_version: String,
+}
 
 fn new_underhill_remote_console_cfg(
     framebuffer_gpa_base: Option<u64>,

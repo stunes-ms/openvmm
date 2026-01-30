@@ -16,6 +16,9 @@ cfg_if::cfg_if! {
 }
 
 use crate::ControlRequest;
+use crate::ProvisioningMarker;
+use crate::VmgsProvisioner;
+use crate::VmgsProvisioningReason;
 use crate::dispatch::LoadedVm;
 use crate::dispatch::LoadedVmNetworkSettings;
 use crate::dispatch::vtl2_settings_worker::InitialControllers;
@@ -166,8 +169,8 @@ use vmcore::vmtime::VmTimeKeeper;
 use vmgs::Vmgs;
 use vmgs_broker::resolver::VmgsFileResolver;
 use vmgs_broker::spawn_vmgs_broker;
-use vmgs_format::ProvisioningMarker;
-use vmgs_format::VmgsProvisioner;
+//use vmgs_format::ProvisioningMarker;
+//use vmgs_format::VmgsProvisioner;
 use vmgs_resources::VmgsFileHandle;
 use vmm_core::input_distributor::InputDistributor;
 use vmm_core::partition_unit::Halt;
@@ -1751,32 +1754,52 @@ async fn new_underhill_vm(
 
     if let Some((_, ref mut vmgs)) = vmgs {
         if vmgs.was_provisioned_this_boot() {
-            let mut rev = [0u8; vmgs_format::HCL_VERSION_LENGTH];
-            let rev_bytes = build_info::get().scm_revision().as_bytes();
-            let rev_len = rev_bytes.len().min(40);
-            rev[..rev_len].copy_from_slice(&rev_bytes[..rev_len]);
-
-            let reset_by_gsl_flag = (matches!(
-                dps.general.guest_state_lifetime,
-                GuestStateLifetime::Reprovision
-            ) || (matches!(
-                dps.general.guest_state_lifetime,
-                GuestStateLifetime::ReprovisionOnFailure
-            ) && vmgs.was_formatted_on_failure())) as u8;
-
-            let marker = ProvisioningMarker {
-                marker_version: vmgs_format::PROVISIONING_MARKER_CURRENT_VERSION,
-                provisioner: VmgsProvisioner::OPENHCL,
-                reset_by_gsl_flag,
-                vtpm_version: tpm_protocol::TPM_DEFAULT_VERSION,
-                vtpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
-                vtpm_akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
-                vtpm_akcert_attrs: tpm_protocol::platform_akcert_attributes().into(),
-                hcl_version: rev,
-                ..FromZeros::new_zeroed()
+            let reason = if dps.general.guest_state_lifetime == GuestStateLifetime::Reprovision {
+                VmgsProvisioningReason::Request
+            } else if dps.general.guest_state_lifetime == GuestStateLifetime::ReprovisionOnFailure && vmgs.was_formatted_on_failure() {
+                VmgsProvisioningReason::Failure
+            } else {
+                VmgsProvisioningReason::Empty
             };
 
-            vmgs.write_file(vmgs::FileId::PROVISIONING_MARKER, marker.as_bytes())
+            let marker = ProvisioningMarker {
+                provisioner: VmgsProvisioner::OpenHCL,
+                reason,
+                tpm_version: tpm_protocol::TPM_DEFAULT_VERSION.to_string(),
+                tpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
+                akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
+                // TODO: make sure it gets "0x"
+                akcert_attrs: format!("{:x}", Into::<u32>::into(tpm_protocol::platform_akcert_attributes())),
+                hcl_version: build_info::get().scm_revision().to_string(),
+            };
+
+            //// old code below
+            //let mut rev = [0u8; vmgs_format::HCL_VERSION_LENGTH];
+            //let rev_bytes = build_info::get().scm_revision().as_bytes();
+            //let rev_len = rev_bytes.len().min(40);
+            //rev[..rev_len].copy_from_slice(&rev_bytes[..rev_len]);
+
+            //let reset_by_gsl_flag = (matches!(
+            //    dps.general.guest_state_lifetime,
+            //    GuestStateLifetime::Reprovision
+            //) || (matches!(
+            //    dps.general.guest_state_lifetime,
+            //    GuestStateLifetime::ReprovisionOnFailure
+            //) && vmgs.was_formatted_on_failure())) as u8;
+
+            //let marker = ProvisioningMarker {
+            //    marker_version: vmgs_format::PROVISIONING_MARKER_CURRENT_VERSION,
+            //    provisioner: VmgsProvisioner::OPENHCL,
+            //    reset_by_gsl_flag,
+            //    vtpm_version: tpm_protocol::TPM_DEFAULT_VERSION,
+            //    vtpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
+            //    vtpm_akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
+            //    vtpm_akcert_attrs: tpm_protocol::platform_akcert_attributes().into(),
+            //    hcl_version: rev,
+            //    ..FromZeros::new_zeroed()
+            //};
+
+            vmgs.write_file(vmgs::FileId::PROVISIONING_MARKER, serde_json::to_string(&marker)?.as_bytes())
                 .await?;
         }
     }

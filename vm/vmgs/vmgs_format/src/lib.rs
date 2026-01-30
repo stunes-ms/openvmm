@@ -14,7 +14,7 @@ use core::ops::IndexMut;
 use inspect::Inspect;
 use open_enum::open_enum;
 use static_assertions::const_assert;
-use tpm_protocol::TpmVersion;
+//use tpm_protocol::TpmVersion;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
@@ -244,13 +244,13 @@ pub struct ProvisioningMarker {
     pub provisioner: VmgsProvisioner,
     pub reset_by_gsl_flag: u8,
     pub _reserved1: [u8; 3],
-    pub vtpm_version: TpmVersion,
+    //pub vtpm_version: TpmVersion,
     pub vtpm_nvram_size: u32,
     pub vtpm_akcert_size: u32,
     pub vtpm_akcert_attrs: u32,
     // provisioner == OPENHCL: string representation of commit hash; otherwise undefined
     pub hcl_version: [u8; HCL_VERSION_LENGTH],
-    pub _reserved2: [u8; 956],
+    pub _reserved2: [u8; 960],
 }
 
 // Size of the provisioning marker.

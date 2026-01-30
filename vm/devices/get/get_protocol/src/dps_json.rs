@@ -93,7 +93,7 @@ pub enum PcatBootDevice {
 }
 
 /// Guest state lifetime
-#[derive(Debug, Copy, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, Default, PartialEq)]
 pub enum GuestStateLifetime {
     #[default]
     Default,

@@ -72,23 +72,23 @@ pub fn platform_akcert_attributes() -> TpmaNvBits {
         .with_nv_no_da(true)
 }
 
-open_enum! {
-    /// vTPM versions whose state can be provisioned in a new VMGS file. Note that
-    /// these constants are part of the VMGS diagnostic provisioning marker format
-    /// defined in vmgs_format.
-    #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
-    pub enum TpmVersion: u32 {
-        /// TPM version 1.38
-        VER_138 = 1,
-    }
-}
+//open_enum! {
+//    /// vTPM versions whose state can be provisioned in a new VMGS file. Note that
+//    /// these constants are part of the VMGS diagnostic provisioning marker format
+//    /// defined in vmgs_format.
+//    #[derive(IntoBytes, Immutable, KnownLayout, FromBytes)]
+//    pub enum TpmVersion: u32 {
+//        /// TPM version 1.38
+//        VER_138 = 1,
+//    }
+//}
 
 /// Default vTPM version provisioned for a new VMGS.
-pub const TPM_DEFAULT_VERSION: TpmVersion = TpmVersion::VER_138;
+pub const TPM_DEFAULT_VERSION: &'static str = "1.38";
 
 /// Default vTPM NVRAM size provisioned for a new VMGS.
-pub const TPM_DEFAULT_SIZE: u32 = 32768;
+pub const TPM_DEFAULT_SIZE: usize = 32768;
 
 // TODO: combine this with MAX_NV_INDEX_SIZE
 /// Default NVRAM index size provisioned for AKCert.
-pub const TPM_DEFAULT_AKCERT_SIZE: u32 = 4096;
+pub const TPM_DEFAULT_AKCERT_SIZE: usize = 4096;
