@@ -166,6 +166,8 @@ use vmcore::vmtime::VmTime;
 use vmcore::vmtime::VmTimeKeeper;
 use vmgs::Vmgs;
 use vmgs_broker::spawn_vmgs_broker;
+use vmgs_ext::VmgsProvisioner;
+use vmgs_ext::VmgsProvisioningMarker;
 use vmgs_resources::VmgsFileHandle;
 use vmm_core::input_distributor::InputDistributor;
 use vmm_core::partition_unit::Halt;
@@ -1381,6 +1383,29 @@ fn guest_memory_access_self_test(
     Ok(())
 }
 
+/// Write a diagnostic provisioning marker to a newly-created VMGS file.
+async fn write_provisioning_marker(vmgs: &mut Vmgs) -> anyhow::Result<()> {
+    let marker = VmgsProvisioningMarker {
+        provisioner: VmgsProvisioner::OpenHCL,
+        reason: vmgs.provisioning_reason(),
+        tpm_version: tpm_protocol::TPM_DEFAULT_VERSION.to_string(),
+        tpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
+        akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
+        akcert_attrs: format!(
+            "0x{:x}",
+            Into::<u32>::into(tpm_protocol::platform_akcert_attributes())
+        ),
+        hcl_version: build_info::get().scm_revision().to_string(),
+    };
+
+    Ok(vmgs
+        .write_file(
+            vmgs::FileId::PROVISIONING_MARKER,
+            serde_json::to_string(&marker)?.as_bytes(),
+        )
+        .await?)
+}
+
 /// Run the underhill specific worker entrypoint.
 async fn new_underhill_vm(
     get_spawner: impl Spawn,
@@ -1749,6 +1774,20 @@ async fn new_underhill_vm(
             Some((meta, vmgs))
         }
     };
+
+    if let Some((_, ref mut vmgs)) = vmgs {
+        if vmgs.was_provisioned_this_boot() {
+            let result = write_provisioning_marker(vmgs).await;
+
+            if let Err(err) = result {
+                tracing::warn!(
+                    CVM_ALLOWED,
+                    error = err.as_ref() as &dyn std::error::Error,
+                    "failed to write vmgs provisioning marker"
+                );
+            }
+        }
+    }
 
     // Determine if the VTL0 alias map is in use.
     let vtl0_alias_map_bit =

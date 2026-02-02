@@ -27,6 +27,7 @@ ci = ["encryption_win"]
 disk_backend.workspace = true
 guestmem.workspace = true
 scsi_buffers.workspace = true
+vmgs_ext.workspace = true
 vmgs_format.workspace = true
 
 inspect = { workspace = true, optional = true }
