@@ -1299,7 +1299,7 @@ impl Vmgs {
     /// Why this VMGS file was provisioned, or None if it was not provisioned
     /// during the most recent boot
     pub fn provisioning_reason(&self) -> Option<VmgsProvisioningReason> {
-        self.state.provisioning_reason.clone()
+        self.state.provisioning_reason
     }
 
     async fn set_reprovisioned(&mut self, value: bool) -> Result<(), Error> {
