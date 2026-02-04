@@ -7,12 +7,17 @@
 #![forbid(unsafe_code)]
 #![no_std]
 
+extern crate alloc;
+
+use alloc::string::String;
 use bitfield_struct::bitfield;
 use core::ops::Index;
 use core::ops::IndexMut;
 #[cfg(feature = "inspect")]
 use inspect::Inspect;
 use open_enum::open_enum;
+use serde::Deserialize;
+use serde::Serialize;
 use static_assertions::const_assert;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
@@ -230,4 +235,40 @@ pub struct VmgsMarkers {
     pub reprovisioned: bool,
     #[bits(15)]
     _reserved: u16,
+}
+
+/// Entities that can provision a VMGS file.
+#[cfg_attr(feature = "inspect", derive(Inspect))]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VmgsProvisioner {
+    Unknown,
+    Hcl,
+    OpenHcl,
+    CpsVmgstoolCvm,
+    CpsVmgstoolTvm,
+    HclPostProvisioning,
+}
+
+/// Reasons that OpenHCL will provision a VMGS file.
+#[cfg_attr(feature = "inspect", derive(Inspect))]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum VmgsProvisioningReason {
+    Empty,
+    Failure,
+    Request,
+}
+
+/// Diagnostic marker that contains information about the VMGS's provisioning.
+#[cfg_attr(feature = "inspect", derive(Inspect))]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VmgsProvisioningMarker {
+    pub provisioner: VmgsProvisioner,
+    pub reason: VmgsProvisioningReason,
+    pub tpm_version: String,
+    pub tpm_nvram_size: usize,
+    pub akcert_size: usize,
+    pub akcert_attrs: String,
+    pub provisioner_version: String,
 }

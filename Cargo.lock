@@ -8122,7 +8122,7 @@ dependencies = [
  "vmcore",
  "vmgs",
  "vmgs_broker",
- "vmgs_ext",
+ "vmgs_format",
  "vmgs_resources",
  "vmm_core",
  "vmm_core_defs",
@@ -9315,9 +9315,9 @@ dependencies = [
  "pal_async",
  "parking_lot",
  "scsi_buffers",
+ "serde_json",
  "thiserror 2.0.16",
  "tracing",
- "vmgs_ext",
  "vmgs_format",
  "windows 0.62.0",
  "zerocopy 0.8.27",
@@ -9341,20 +9341,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "vmgs_ext"
-version = "0.0.0"
-dependencies = [
- "inspect",
- "serde",
-]
-
-[[package]]
 name = "vmgs_format"
 version = "0.0.0"
 dependencies = [
  "bitfield-struct 0.11.0",
  "inspect",
  "open_enum",
+ "serde",
  "static_assertions",
  "zerocopy 0.8.27",
 ]

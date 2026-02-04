@@ -166,8 +166,8 @@ use vmcore::vmtime::VmTime;
 use vmcore::vmtime::VmTimeKeeper;
 use vmgs::Vmgs;
 use vmgs_broker::spawn_vmgs_broker;
-use vmgs_ext::VmgsProvisioner;
-use vmgs_ext::VmgsProvisioningMarker;
+use vmgs_format::VmgsProvisioner;
+use vmgs_format::VmgsProvisioningMarker;
 use vmgs_resources::VmgsFileHandle;
 use vmm_core::input_distributor::InputDistributor;
 use vmm_core::partition_unit::Halt;
@@ -1395,7 +1395,7 @@ async fn write_provisioning_marker(vmgs: &mut Vmgs) -> anyhow::Result<()> {
             "0x{:x}",
             Into::<u32>::into(tpm_protocol::platform_akcert_attributes())
         ),
-        hcl_version: build_info::get().scm_revision().to_string(),
+        provisioner_version: build_info::get().scm_revision().to_string(),
     };
 
     Ok(vmgs

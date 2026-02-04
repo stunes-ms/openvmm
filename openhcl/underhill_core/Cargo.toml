@@ -132,7 +132,7 @@ vmcore.workspace = true
 vm_resource.workspace = true
 vmgs = { workspace = true, features = ["encryption_ossl", "save_restore"] }
 vmgs_broker = { workspace = true, features = ["encryption_ossl"] }
-vmgs_ext.workspace = true
+vmgs_format.workspace = true
 vmgs_resources.workspace = true
 x86defs.workspace = true
 

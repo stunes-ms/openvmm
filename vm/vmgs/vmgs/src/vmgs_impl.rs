@@ -17,7 +17,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
-use vmgs_ext::VmgsProvisioningReason;
 use vmgs_format::EncryptionAlgorithm;
 use vmgs_format::FileAttribute;
 use vmgs_format::FileId;
@@ -36,6 +35,8 @@ use vmgs_format::VmgsFileTable;
 use vmgs_format::VmgsHeader;
 use vmgs_format::VmgsMarkers;
 use vmgs_format::VmgsNonce;
+use vmgs_format::VmgsProvisioningMarker;
+use vmgs_format::VmgsProvisioningReason;
 use zerocopy::FromBytes;
 use zerocopy::FromZeros;
 use zerocopy::IntoBytes;
@@ -380,7 +381,8 @@ struct VmgsState {
     #[cfg_attr(feature = "inspect", inspect(iter_by_index))]
     encrypted_metadata_keys: [VmgsEncryptionKey; 2],
     reprovisioned: bool,
-    provisioning_reason: Option<VmgsProvisioningReason>,
+    provisioned_this_boot: bool,
+    provisioning_reason: VmgsProvisioningReason,
 }
 
 #[cfg(feature = "inspect")]
@@ -472,13 +474,7 @@ impl Vmgs {
         disk: Disk,
         logger: Option<Arc<dyn VmgsLogger>>,
     ) -> Result<Self, Error> {
-        tracing::info!(
-            CVM_ALLOWED,
-            op_type = ?LogOpType::VmgsProvision,
-            "formatting and initializing VMGS datastore"
-        );
-        let storage = VmgsStorage::new_validated(disk).map_err(Error::Initialization)?;
-        Self::format_new_inner(storage, VMGS_VERSION_3_0, None, logger).await
+        Self::format_new_with_reason(disk, VmgsProvisioningReason::Request, logger).await
     }
 
     /// Format and open a new VMGS file.
@@ -494,7 +490,7 @@ impl Vmgs {
             "formatting and initializing VMGS datastore"
         );
         let storage = VmgsStorage::new_validated(disk).map_err(Error::Initialization)?;
-        Self::format_new_inner(storage, VMGS_VERSION_3_0, Some(reason), logger).await
+        Self::format_new_inner(storage, VMGS_VERSION_3_0, reason, logger).await
     }
 
     /// Format and open a new VMGS file.
@@ -514,7 +510,7 @@ impl Vmgs {
                 let mut vmgs = Vmgs::format_new_inner(
                     storage,
                     VMGS_VERSION_3_0,
-                    Some(VmgsProvisioningReason::Request),
+                    VmgsProvisioningReason::Request,
                     logger,
                 )
                 .await?;
@@ -592,7 +588,7 @@ impl Vmgs {
     fn new(
         storage: VmgsStorage,
         version: u32,
-        reason: Option<VmgsProvisioningReason>,
+        reason: VmgsProvisioningReason,
         logger: Option<Arc<dyn VmgsLogger>>,
     ) -> Vmgs {
         Self {
@@ -611,7 +607,7 @@ impl Vmgs {
     async fn format_new_inner(
         storage: VmgsStorage,
         version: u32,
-        reason: Option<VmgsProvisioningReason>,
+        reason: VmgsProvisioningReason,
         logger: Option<Arc<dyn VmgsLogger>>,
     ) -> Result<Vmgs, Error> {
         tracing::info!(CVM_ALLOWED, "Formatting new VMGS file.");
@@ -1293,13 +1289,26 @@ impl Vmgs {
 
     /// Whether the VMGS file was provisioned during the most recent boot
     pub fn was_provisioned_this_boot(&self) -> bool {
-        self.state.provisioning_reason.is_some()
+        self.state.provisioned_this_boot
     }
 
-    /// Why this VMGS file was provisioned, or None if it was not provisioned
-    /// during the most recent boot
-    pub fn provisioning_reason(&self) -> Option<VmgsProvisioningReason> {
+    /// Why this VMGS file was provisioned
+    pub fn provisioning_reason(&self) -> VmgsProvisioningReason {
         self.state.provisioning_reason
+    }
+
+    /// Write a provisioning marker to this VMGS file
+    pub async fn write_provisioning_marker(
+        &mut self,
+        marker: &VmgsProvisioningMarker,
+    ) -> Result<(), Error> {
+        self.write_file(
+            FileId::PROVISIONING_MARKER,
+            serde_json::to_string(marker)
+                .map_err(|e| Error::Other(e.into()))?
+                .as_bytes(),
+        )
+        .await
     }
 
     async fn set_reprovisioned(&mut self, value: bool) -> Result<(), Error> {
@@ -1335,7 +1344,7 @@ impl Vmgs {
 }
 
 impl VmgsState {
-    fn new(version: u32, provisioning_reason: Option<VmgsProvisioningReason>) -> Self {
+    fn new(version: u32, provisioning_reason: VmgsProvisioningReason) -> Self {
         Self {
             active_header_index: 1,
             active_header_sequence_number: 0,
@@ -1348,16 +1357,19 @@ impl VmgsState {
             unused_metadata_key: VmgsDatastoreKey::new_zeroed(),
             encrypted_metadata_keys: std::array::from_fn(|_| VmgsEncryptionKey::new_zeroed()),
             reprovisioned: false,
+            provisioned_this_boot: true,
             provisioning_reason,
         }
     }
 
     fn from_header(header: VmgsHeader, header_index: usize) -> Self {
-        let mut state = Self::new(header.version, None);
+        let reason = VmgsProvisioningReason::Request;
+        let mut state = Self::new(header.version, reason);
 
         state.active_header_index = header_index;
         state.active_header_sequence_number = header.sequence;
-        state.provisioning_reason = None;
+        state.provisioned_this_boot = false;
+        state.provisioning_reason = reason;
 
         if header.version >= VMGS_VERSION_3_0 {
             state.encryption_algorithm = header.encryption_algorithm;
@@ -2018,7 +2030,8 @@ pub mod save_restore {
                         }
                     }),
                     reprovisioned,
-                    provisioning_reason: None,
+                    provisioned_this_boot: false,
+                    provisioning_reason: VmgsProvisioningReason::Request,
                 },
 
                 logger,
@@ -2050,6 +2063,7 @@ pub mod save_restore {
                         unused_metadata_key: metadata_key,
                         encrypted_metadata_keys,
                         reprovisioned,
+                        provisioned_this_boot: _,
                         provisioning_reason: _,
                     },
 
