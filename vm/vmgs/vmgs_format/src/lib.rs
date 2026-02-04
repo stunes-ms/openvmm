@@ -246,7 +246,7 @@ pub enum VmgsProvisioner {
     Hcl,
     OpenHcl,
     CpsVmgstoolCvm,
-    CpsVmgstoolTvm,
+    HaVmgstoolTvm,
     HclPostProvisioning,
 }
 
