@@ -10,7 +10,7 @@ use inspect::Inspect;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Serialize, Deserialize, Inspect)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Inspect)]
 #[serde(rename_all = "lowercase")]
 pub enum VmgsProvisioner {
     Unknown,
@@ -21,7 +21,7 @@ pub enum VmgsProvisioner {
     HclPostProvisioning,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Inspect)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Inspect)]
 #[serde(rename_all = "lowercase")]
 pub enum VmgsProvisioningReason {
     Empty,
