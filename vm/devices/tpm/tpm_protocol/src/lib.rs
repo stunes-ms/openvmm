@@ -68,7 +68,7 @@ pub fn platform_akcert_attributes() -> TpmaNvBits {
 }
 
 /// Default vTPM version provisioned for a new VMGS.
-pub const TPM_DEFAULT_VERSION: &'static str = "1.38";
+pub const TPM_DEFAULT_VERSION: &str = "1.38";
 
 /// Default vTPM NVRAM size provisioned for a new VMGS.
 pub const TPM_DEFAULT_SIZE: usize = 32768;

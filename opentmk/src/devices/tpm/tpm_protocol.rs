@@ -3937,13 +3937,14 @@ mod tests {
 
         let auth_value: u64 = 0x7766554433221100;
 
-        let result = TpmsNvPublic::new(
-            0x1c101d0,
-            AlgIdEnum::SHA256.into(),
-            platform_akcert_attributes(),
-            &[],
-            4096,
-        );
+        let attributes = TpmaNvBits::new()
+            .with_nv_authread(true)
+            .with_nv_authwrite(true)
+            .with_nv_ownerread(true)
+            .with_nv_platformcreate(true)
+            .with_nv_no_da(true);
+
+        let result = TpmsNvPublic::new(0x1c101d0, AlgIdEnum::SHA256.into(), attributes, &[], 4096);
         assert!(result.is_ok());
         let nv_public = result.unwrap();
 

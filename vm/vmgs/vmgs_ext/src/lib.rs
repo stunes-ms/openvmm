@@ -14,10 +14,10 @@ use serde::Serialize;
 #[serde(rename_all = "lowercase")]
 pub enum VmgsProvisioner {
     Unknown,
-    HCL,
-    OpenHCL,
-    CpsVmgstoolCVM,
-    CpsVmgstoolTVM,
+    Hcl,
+    OpenHcl,
+    CpsVmgstoolCvm,
+    CpsVmgstoolTvm,
     HclPostProvisioning,
 }
 

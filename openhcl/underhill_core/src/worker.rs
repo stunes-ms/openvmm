@@ -1386,7 +1386,7 @@ fn guest_memory_access_self_test(
 /// Write a diagnostic provisioning marker to a newly-created VMGS file.
 async fn write_provisioning_marker(vmgs: &mut Vmgs) -> anyhow::Result<()> {
     let marker = VmgsProvisioningMarker {
-        provisioner: VmgsProvisioner::OpenHCL,
+        provisioner: VmgsProvisioner::OpenHcl,
         reason: vmgs.provisioning_reason(),
         tpm_version: tpm_protocol::TPM_DEFAULT_VERSION.to_string(),
         tpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
