@@ -381,8 +381,7 @@ struct VmgsState {
     #[cfg_attr(feature = "inspect", inspect(iter_by_index))]
     encrypted_metadata_keys: [VmgsEncryptionKey; 2],
     reprovisioned: bool,
-    provisioned_this_boot: bool,
-    provisioning_reason: VmgsProvisioningReason,
+    provisioning_reason: Option<VmgsProvisioningReason>,
 }
 
 #[cfg(feature = "inspect")]
@@ -594,7 +593,7 @@ impl Vmgs {
         Self {
             storage,
 
-            state: VmgsState::new(version, reason),
+            state: VmgsState::new(version, Some(reason)),
 
             #[cfg(feature = "inspect")]
             stats: Default::default(),
@@ -1289,11 +1288,11 @@ impl Vmgs {
 
     /// Whether the VMGS file was provisioned during the most recent boot
     pub fn was_provisioned_this_boot(&self) -> bool {
-        self.state.provisioned_this_boot
+        self.state.provisioning_reason.is_some()
     }
 
     /// Why this VMGS file was provisioned
-    pub fn provisioning_reason(&self) -> VmgsProvisioningReason {
+    pub fn provisioning_reason(&self) -> Option<VmgsProvisioningReason> {
         self.state.provisioning_reason
     }
 
@@ -1344,7 +1343,7 @@ impl Vmgs {
 }
 
 impl VmgsState {
-    fn new(version: u32, provisioning_reason: VmgsProvisioningReason) -> Self {
+    fn new(version: u32, provisioning_reason: Option<VmgsProvisioningReason>) -> Self {
         Self {
             active_header_index: 1,
             active_header_sequence_number: 0,
@@ -1357,19 +1356,15 @@ impl VmgsState {
             unused_metadata_key: VmgsDatastoreKey::new_zeroed(),
             encrypted_metadata_keys: std::array::from_fn(|_| VmgsEncryptionKey::new_zeroed()),
             reprovisioned: false,
-            provisioned_this_boot: true,
             provisioning_reason,
         }
     }
 
     fn from_header(header: VmgsHeader, header_index: usize) -> Self {
-        let reason = VmgsProvisioningReason::Request;
-        let mut state = Self::new(header.version, reason);
+        let mut state = Self::new(header.version, None);
 
         state.active_header_index = header_index;
         state.active_header_sequence_number = header.sequence;
-        state.provisioned_this_boot = false;
-        state.provisioning_reason = reason;
 
         if header.version >= VMGS_VERSION_3_0 {
             state.encryption_algorithm = header.encryption_algorithm;
@@ -2030,8 +2025,7 @@ pub mod save_restore {
                         }
                     }),
                     reprovisioned,
-                    provisioned_this_boot: false,
-                    provisioning_reason: VmgsProvisioningReason::Request,
+                    provisioning_reason: None,
                 },
 
                 logger,
@@ -2063,7 +2057,6 @@ pub mod save_restore {
                         unused_metadata_key: metadata_key,
                         encrypted_metadata_keys,
                         reprovisioned,
-                        provisioned_this_boot: _,
                         provisioning_reason: _,
                     },
 

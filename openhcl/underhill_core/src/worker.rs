@@ -168,6 +168,7 @@ use vmgs::Vmgs;
 use vmgs_broker::spawn_vmgs_broker;
 use vmgs_format::VmgsProvisioner;
 use vmgs_format::VmgsProvisioningMarker;
+use vmgs_format::VmgsProvisioningReason;
 use vmgs_resources::VmgsFileHandle;
 use vmm_core::input_distributor::InputDistributor;
 use vmm_core::partition_unit::Halt;
@@ -1387,7 +1388,9 @@ fn guest_memory_access_self_test(
 async fn write_provisioning_marker(vmgs: &mut Vmgs) -> anyhow::Result<()> {
     let marker = VmgsProvisioningMarker {
         provisioner: VmgsProvisioner::OpenHcl,
-        reason: vmgs.provisioning_reason(),
+        reason: vmgs
+            .provisioning_reason()
+            .unwrap_or(VmgsProvisioningReason::Unknown),
         tpm_version: tpm_protocol::TPM_DEFAULT_VERSION.to_string(),
         tpm_nvram_size: tpm_protocol::TPM_DEFAULT_SIZE,
         akcert_size: tpm_protocol::TPM_DEFAULT_AKCERT_SIZE,
@@ -1398,12 +1401,7 @@ async fn write_provisioning_marker(vmgs: &mut Vmgs) -> anyhow::Result<()> {
         provisioner_version: build_info::get().scm_revision().to_string(),
     };
 
-    Ok(vmgs
-        .write_file(
-            vmgs::FileId::PROVISIONING_MARKER,
-            serde_json::to_string(&marker)?.as_bytes(),
-        )
-        .await?)
+    Ok(vmgs.write_provisioning_marker(&marker).await?)
 }
 
 /// Run the underhill specific worker entrypoint.

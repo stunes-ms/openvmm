@@ -258,6 +258,7 @@ pub enum VmgsProvisioningReason {
     Empty,
     Failure,
     Request,
+    Unknown,
 }
 
 /// Diagnostic marker that contains information about the VMGS's provisioning.
