@@ -2123,21 +2123,18 @@ pub mod save_restore {
 mod tests {
     use super::*;
     use pal_async::async_test;
-    #[cfg(with_encryption)]
     use parking_lot::Mutex;
-    #[cfg(with_encryption)]
     use std::sync::Arc;
     #[cfg(with_encryption)]
     use vmgs_format::VMGS_ENCRYPTION_KEY_SIZE;
+    use vmgs_format::VmgsProvisioner;
 
     const ONE_MEGA_BYTE: u64 = 1024 * 1024;
 
-    #[cfg(with_encryption)]
     struct TestVmgsLogger {
         data: Arc<Mutex<String>>,
     }
 
-    #[cfg(with_encryption)]
     #[async_trait::async_trait]
     impl VmgsLogger for TestVmgsLogger {
         async fn log_event_fatal(&self, _event: VmgsLogEvent) {
@@ -2989,5 +2986,35 @@ mod tests {
             513
         );
         allocate_helper(&mut allocation_list, 1, block_capacity).unwrap_err();
+    }
+
+    #[async_test]
+    async fn test_provisioning_marker() {
+        const EXPECTED_MARKER: &str = r#"{"provisioner":"openhcl","reason":"empty","tpm_version":"1.38","tpm_nvram_size":32768,"akcert_size":4096,"akcert_attrs":"0x42060004","provisioner_version":"unit test"}"#;
+
+        let disk = new_test_file();
+        let data = Arc::new(Mutex::new(String::new()));
+        let mut vmgs = Vmgs::format_new_with_reason(
+            disk.clone(),
+            VmgsProvisioningReason::Empty,
+            Some(Arc::new(TestVmgsLogger { data: data.clone() })),
+        )
+        .await
+        .unwrap();
+
+        let marker = VmgsProvisioningMarker {
+            provisioner: VmgsProvisioner::OpenHcl,
+            reason: vmgs.provisioning_reason().unwrap(),
+            tpm_version: "1.38".to_string(),
+            tpm_nvram_size: 32768,
+            akcert_size: 4096,
+            akcert_attrs: "0x42060004".to_string(),
+            provisioner_version: "unit test".to_string(),
+        };
+
+        vmgs.write_provisioning_marker(&marker).await.unwrap();
+
+        let read_buf = vmgs.read_file(FileId::PROVISIONING_MARKER).await.unwrap();
+        assert_eq!(EXPECTED_MARKER.as_bytes(), read_buf);
     }
 }

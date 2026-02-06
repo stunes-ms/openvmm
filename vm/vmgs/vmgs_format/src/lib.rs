@@ -255,13 +255,20 @@ pub enum VmgsProvisioner {
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum VmgsProvisioningReason {
+    /// VMGS file was empty.
     Empty,
+    /// VMGS file was corrupt or OpenHCL failed to read it.
     Failure,
+    /// Host requested that OpenHCL reprovision the VMGS.
     Request,
+    /// Unknown reason.
     Unknown,
 }
 
 /// Diagnostic marker that contains information about the VMGS's provisioning.
+/// This marker is written once when a VMGS file is created, leaving a trace of
+/// where and how it originated (e.g., that it was created by OpenHCL). Adding
+/// new fields is safe, as it is not read by OpenHCL for any behavioral purpose.
 #[cfg_attr(feature = "inspect", derive(Inspect))]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VmgsProvisioningMarker {
