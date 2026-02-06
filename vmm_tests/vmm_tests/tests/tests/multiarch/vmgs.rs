@@ -407,3 +407,49 @@ async fn vmgstool_update_key<T: PetriVmmBackend>(
 
     Ok(())
 }
+
+/// Test VMGS provisioning marker
+#[openvmm_test(
+    openvmm_openhcl_uefi_x64(vhd(ubuntu_2504_server_x64))[VMGSTOOL_NATIVE],
+)]
+async fn vmgs_provisioning_marker<T: PetriVmmBackend>(
+    config: PetriVmBuilder<T>,
+    (vmgstool,): (ResolvedArtifact<impl IsVmgsTool>,),
+) -> Result<(), anyhow::Error> {
+    let temp_dir = tempfile::tempdir()?;
+    let vmgs_path = temp_dir.path().join("test.vmgs");
+    let vmgstool_path = vmgstool.get();
+
+    let mut cmd = Command::new(vmgstool_path);
+    cmd.arg("create").arg("--filepath").arg(&vmgs_path);
+    run_host_cmd(cmd).await?;
+
+    let (vm, agent) = config
+        .with_guest_state_lifetime(PetriGuestStateLifetime::Reprovision)
+        .with_persistent_vmgs(&vmgs_path)
+        .run()
+        .await?;
+
+    agent.power_off().await?;
+    vm.wait_for_clean_shutdown().await?;
+
+    // Hyper-V VMs copy the VMGS rather than use it in-place, so update the
+    // path here.
+    let vmgs_path = vm.get_guest_state_file().await?.unwrap_or(vmgs_path);
+
+    let out_data_path = temp_dir.path().join("out.bin");
+    let mut cmd = Command::new(vmgstool_path);
+    cmd.arg("dump")
+        .arg("--filepath")
+        .arg(&vmgs_path)
+        .arg("--data-path")
+        .arg(&out_data_path)
+        .arg("--fileid")
+        .arg("18");
+    run_host_cmd(cmd).await?;
+
+    let output = std::fs::read(&out_data_path)?;
+    let output_data = serde_json::from_str(output);
+
+    assert_eq!("request", output_data.get("reason").unwrap());
+}
