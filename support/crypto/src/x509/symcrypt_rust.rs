@@ -141,7 +141,6 @@ impl X509CertificateInner {
         Ok(true)
     }
 
-    #[cfg(any(test, feature = "test_helpers"))]
     pub fn to_der(&self) -> Result<Vec<u8>, X509Error> {
         self.0
             .to_der()

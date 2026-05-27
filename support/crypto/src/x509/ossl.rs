@@ -52,7 +52,6 @@ impl X509CertificateInner {
         Ok(self.0.issued(&subject.0) == openssl::x509::X509VerifyResult::OK)
     }
 
-    #[cfg(any(test, feature = "test_helpers"))]
     pub fn to_der(&self) -> Result<Vec<u8>, X509Error> {
         self.0
             .to_der()

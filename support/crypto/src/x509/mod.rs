@@ -64,7 +64,6 @@ impl X509Certificate {
         self.0.issued(&subject.0)
     }
 
-    #[cfg(any(test, feature = "test_helpers"))]
     /// Encode this certificate as DER bytes.
     pub fn to_der(&self) -> Result<Vec<u8>, X509Error> {
         self.0.to_der()
