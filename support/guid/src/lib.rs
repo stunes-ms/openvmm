@@ -97,7 +97,7 @@ impl Guid {
         }
     }
 
-    /// Return a new GUID from a byte slice.
+    /// Return a new GUID from a byte slice in mixed-endian format.
     pub fn from_slice(bytes: &[u8]) -> Result<Self, ParseError> {
         if bytes.len() != 16 {
             return Err(ParseError::Length);
@@ -381,11 +381,11 @@ mod tests {
     #[test]
     fn test_from_slice() {
         let bytes = vec![
-            0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0,
+            0x3, 0x2, 0x1, 0x0, 0x5, 0x4, 0x7, 0x6, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf,
         ];
         let guid = Guid::from_slice(&bytes).unwrap();
 
-        const TEST_GUID: Guid = guid!("01020304-0506-0708-090a-0b0c0d0e0f00");
+        const TEST_GUID: Guid = guid!("00010203-0405-0607-0809-0a0b0c0d0e0f");
         assert_eq!(guid, TEST_GUID);
     }
 }

@@ -92,7 +92,7 @@ impl X509Certificate {
     }
 
     /// Get the subject name from an X.509 certificate.
-    pub fn subject_name(&self) -> Option<Result<String, X509Error>> {
+    pub fn subject_name(&self) -> Result<Option<String>, X509Error> {
         self.0.subject_name()
     }
 }

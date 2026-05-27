@@ -2025,6 +2025,10 @@ async fn new_underhill_vm(
             let claims = underhill_attestation::get_provenance_claims(&file).await;
             match claims {
                 Ok(claims) => Some(claims),
+                // If the provenance doc is not valid, proceed as if it doesn't
+                // exist. OpenHCL will not produce attestation claims for
+                // provenance. It's up to the VM owner's key release policy to
+                // enforce the presence of provenance claims.
                 Err(err) => {
                     tracing::warn!(
                         CVM_ALLOWED,

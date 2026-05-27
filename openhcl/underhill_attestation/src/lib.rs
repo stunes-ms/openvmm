@@ -1467,11 +1467,11 @@ pub async fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, 
 
         let sn = leaf
             .subject_name()
+            .map_err(ProvenanceError::X509Error)
+            .map_err(AttestationErrorInner::Provenance)?
             .ok_or(AttestationErrorInner::Provenance(
                 ProvenanceError::InvalidLeafCertSubject,
-            ))?
-            .map_err(ProvenanceError::X509Error)
-            .map_err(AttestationErrorInner::Provenance)?;
+            ))?;
 
         let root = cert_chain.last().ok_or(AttestationErrorInner::Provenance(
             ProvenanceError::InvalidRootCert,
@@ -1504,6 +1504,7 @@ pub async fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
         .map_err(AttestationErrorInner::Provenance)?;
     let [seed_hex, label_hex, context_hex, _seed_len_str] = seed_file_str
         .split(',')
+        .map(|s| s.trim())
         .collect::<Vec<&str>>()
         .try_into()
         .map_err(|_| ProvenanceError::ParseVmgsidData)

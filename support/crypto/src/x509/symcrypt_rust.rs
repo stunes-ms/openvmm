@@ -225,21 +225,23 @@ impl X509CertificateInner {
         Ok(Self(cert))
     }
 
-    pub fn subject_name(&self) -> Option<Result<String, X509Error>> {
-        let cn = match self.0.tbs_certificate().subject().common_name() {
-            Err(e) => return Some(Err(der_err(e, "getting common name"))),
-            Ok(cn) => cn,
-        };
+    pub fn subject_name(&self) -> Result<Option<String>, X509Error> {
+        let cn = self
+            .0
+            .tbs_certificate()
+            .subject()
+            .common_name()
+            .map_err(|e| der_err(e, "getting common_name"))?;
         let cn_str = match cn {
-            None => return None,
+            None => return Ok(None),
             Some(s) => match s {
                 DirectoryString::PrintableString(p) => p.to_string(),
                 DirectoryString::TeletexString(t) => t.to_string(),
                 DirectoryString::Utf8String(u) => u.to_string(),
-                _ => return None,
+                DirectoryString::BmpString(b) => b.to_string(),
             },
         };
-        Some(Ok(cn_str))
+        Ok(Some(cn_str))
     }
 }
 

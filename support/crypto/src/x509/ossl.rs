@@ -90,17 +90,19 @@ impl X509CertificateInner {
         Ok(X509CertificateInner(builder.build()))
     }
 
-    pub fn subject_name(&self) -> Option<Result<String, X509Error>> {
+    pub fn subject_name(&self) -> Result<Option<String>, X509Error> {
         let sn = self
             .0
             .subject_name()
             .entries_by_nid(openssl::nid::Nid::COMMONNAME)
             .next();
-        sn.map(|s| {
-            s.data()
+        match sn {
+            None => return Ok(None),
+            Some(sn) => sn
+                .data()
                 .as_utf8()
-                .map(|u| u.to_string())
-                .map_err(|e| err(e, "decoding subject name"))
-        })
+                .map(|u| Some(u.to_string()))
+                .map_err(|e| err(e, "decoding subject name")),
+        }
     }
 }
