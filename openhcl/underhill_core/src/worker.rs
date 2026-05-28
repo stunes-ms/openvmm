@@ -2018,22 +2018,30 @@ async fn new_underhill_vm(
     let prov_claims = if let Some((_, vmgs)) = vmgs.as_mut() {
         let prov_info = vmgs.get_file_info(vmgs::FileId::PROVENANCE_DOC);
         if prov_info.is_ok() {
-            let file = vmgs
-                .read_file(vmgs::FileId::PROVENANCE_DOC)
-                .await
-                .context("failed to read provenance doc")?;
-            let claims = underhill_attestation::get_provenance_claims(&file).await;
-            match claims {
-                Ok(claims) => Some(claims),
-                // If the provenance doc is not valid, proceed as if it doesn't
-                // exist. OpenHCL will not produce attestation claims for
-                // provenance. It's up to the VM owner's key release policy to
-                // enforce the presence of provenance claims.
+            match vmgs.read_file(vmgs::FileId::PROVENANCE_DOC).await {
+                Ok(file) => {
+                    let claims = underhill_attestation::get_provenance_claims(&file).await;
+                    match claims {
+                        Ok(claims) => Some(claims),
+                        // If the provenance doc is not valid, proceed as if it doesn't
+                        // exist. OpenHCL will not produce attestation claims for
+                        // provenance. It's up to the VM owner's key release policy to
+                        // enforce the presence of provenance claims.
+                        Err(err) => {
+                            tracing::warn!(
+                                CVM_ALLOWED,
+                                error = &err as &dyn std::error::Error,
+                                "failed to get provenance claims"
+                            );
+                            None
+                        }
+                    }
+                }
                 Err(err) => {
                     tracing::warn!(
                         CVM_ALLOWED,
                         error = &err as &dyn std::error::Error,
-                        "failed to get provenance claims"
+                        "failed to read provenance doc"
                     );
                     None
                 }
