@@ -1480,11 +1480,7 @@ pub async fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, 
                 .map_err(ProvenanceError::X509Error)
                 .map_err(AttestationErrorInner::Provenance)?),
         );
-        let signer = format!(
-            "did:x509:0:sha256:{}:subject:{}",
-            hex::encode(digest),
-            sn.to_string()
-        );
+        let signer = format!("did:x509:0:sha256:{}:subject:{}", hex::encode(digest), sn);
         let vmgsid = jwt.jwt.body.vmgsid;
 
         Ok(VmgsProvisioner { id: vmgsid, signer })

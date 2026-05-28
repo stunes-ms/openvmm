@@ -224,17 +224,13 @@ impl X509CertificateInner {
     }
 
     pub fn subject_common_name(&self) -> Result<Option<String>, X509Error> {
-        let cn = self
+        Ok(self
             .0
             .tbs_certificate()
             .subject()
             .common_name()
-            .map_err(|e| der_err(e, "getting common_name"))?;
-        let cn_str = match cn {
-            None => return Ok(None),
-            Some(s) => s.value().into_owned(),
-        };
-        Ok(Some(cn_str))
+            .map_err(|e| der_err(e, "getting common_name"))?
+            .map(|s| s.value().into_owned()))
     }
 }
 
