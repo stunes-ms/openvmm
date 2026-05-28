@@ -90,7 +90,8 @@ impl X509Certificate {
         .map(Self)
     }
 
-    /// Get the subject name from an X.509 certificate.
+    /// Get the Common Name (CN) from the X.509 certificate's subject name. If
+    /// there are multiple CNs present, return the first.
     pub fn subject_common_name(&self) -> Result<Option<String>, X509Error> {
         self.0.subject_common_name()
     }
