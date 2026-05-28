@@ -7,7 +7,6 @@ use super::X509Error;
 use der::Decode;
 use der::Encode;
 use x509_cert::Certificate;
-use x509_cert::ext::pkix::name::DirectoryString;
 
 #[cfg(symcrypt)]
 fn der_err(err: der::Error, op: &'static str) -> X509Error {
@@ -224,7 +223,7 @@ impl X509CertificateInner {
         Ok(Self(cert))
     }
 
-    pub fn subject_name(&self) -> Result<Option<String>, X509Error> {
+    pub fn subject_common_name(&self) -> Result<Option<String>, X509Error> {
         let cn = self
             .0
             .tbs_certificate()
@@ -233,12 +232,7 @@ impl X509CertificateInner {
             .map_err(|e| der_err(e, "getting common_name"))?;
         let cn_str = match cn {
             None => return Ok(None),
-            Some(s) => match s {
-                DirectoryString::PrintableString(p) => p.to_string(),
-                DirectoryString::TeletexString(t) => t.to_string(),
-                DirectoryString::Utf8String(u) => u.to_string(),
-                DirectoryString::BmpString(b) => b.to_string(),
-            },
+            Some(s) => s.value().into_owned(),
         };
         Ok(Some(cn_str))
     }

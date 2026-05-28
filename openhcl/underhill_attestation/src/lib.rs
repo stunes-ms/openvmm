@@ -175,8 +175,8 @@ enum ProvenanceError {
     VerifySignature(#[source] JwtError),
     #[error("invalid signature")]
     InvalidSignature,
-    #[error("invalid leaf certificate subject")]
-    InvalidLeafCertSubject,
+    #[error("missing leaf certificate subject common name")]
+    MissingLeafCertSubjectName,
     #[error("invalid root certificate")]
     InvalidRootCert,
     #[error("failed to convert VMGSID data")]
@@ -185,8 +185,6 @@ enum ProvenanceError {
     ParseVmgsidData,
     #[error("failed to decode VMGSID data")]
     DecodeVmgsidData(hex::FromHexError),
-    #[error("failed to parse VMGSID into GUID")]
-    ParseVmgsid(guid::ParseError),
     #[error("X509 certificate error")]
     X509Error(crypto::x509::X509Error),
     #[error("SP800-108 KDF error")]
@@ -1466,11 +1464,11 @@ pub async fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, 
         let leaf = &cert_chain[0];
 
         let sn = leaf
-            .subject_name()
+            .subject_common_name()
             .map_err(ProvenanceError::X509Error)
             .map_err(AttestationErrorInner::Provenance)?
             .ok_or(AttestationErrorInner::Provenance(
-                ProvenanceError::InvalidLeafCertSubject,
+                ProvenanceError::MissingLeafCertSubjectName,
             ))?;
 
         let root = cert_chain.last().ok_or(AttestationErrorInner::Provenance(
@@ -1524,9 +1522,7 @@ pub async fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
         .map_err(ProvenanceError::KdfError)
         .map_err(AttestationErrorInner::Provenance)?;
 
-    Ok(Guid::from_slice(&key[0..16])
-        .map_err(ProvenanceError::ParseVmgsid)
-        .map_err(AttestationErrorInner::Provenance)?)
+    Ok(Guid::from_slice(&key[0..16].try_into().unwrap()))
 }
 
 /// Module that implements the mock [`TeeCall`] for testing purposes

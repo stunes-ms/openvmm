@@ -89,14 +89,14 @@ impl X509CertificateInner {
         Ok(X509CertificateInner(builder.build()))
     }
 
-    pub fn subject_name(&self) -> Result<Option<String>, X509Error> {
+    pub fn subject_common_name(&self) -> Result<Option<String>, X509Error> {
         let sn = self
             .0
             .subject_name()
             .entries_by_nid(openssl::nid::Nid::COMMONNAME)
             .next();
         match sn {
-            None => return Ok(None),
+            None => Ok(None),
             Some(sn) => sn
                 .data()
                 .as_utf8()

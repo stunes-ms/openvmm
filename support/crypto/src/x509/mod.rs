@@ -91,8 +91,8 @@ impl X509Certificate {
     }
 
     /// Get the subject name from an X.509 certificate.
-    pub fn subject_name(&self) -> Result<Option<String>, X509Error> {
-        self.0.subject_name()
+    pub fn subject_common_name(&self) -> Result<Option<String>, X509Error> {
+        self.0.subject_common_name()
     }
 }
 
@@ -159,10 +159,10 @@ mod tests {
     }
 
     #[test]
-    fn subject_name() {
+    fn subject_common_name() {
         let key = crate::rsa::RsaKeyPair::generate(2048).unwrap();
         let cert = build_test_cert(&key);
-        let sn = cert.subject_name().unwrap().unwrap();
+        let sn = cert.subject_common_name().unwrap().unwrap();
         assert_eq!(sn, "test.example.com");
     }
 }
