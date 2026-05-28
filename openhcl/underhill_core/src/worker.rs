@@ -2014,19 +2014,18 @@ async fn new_underhill_vm(
         tracing::warn!(CVM_ALLOWED, "confidential debug enabled");
     }
 
-    // Get VMGS provenance claims.
+    // Get VMGS provenance claims. If the provenance doc can't be read or if it
+    // isn't valid, proceceed as if it doesn't exist. In that case, OpenHCL will
+    // not produce attestation claims for provenance. It's up to the VM owner's
+    // key release policy to enforce the presence of provenance claims.
     let prov_claims = if let Some((_, vmgs)) = vmgs.as_mut() {
         let prov_info = vmgs.get_file_info(vmgs::FileId::PROVENANCE_DOC);
         if prov_info.is_ok() {
             match vmgs.read_file(vmgs::FileId::PROVENANCE_DOC).await {
                 Ok(file) => {
-                    let claims = underhill_attestation::get_provenance_claims(&file).await;
+                    let claims = underhill_attestation::get_provenance_claims(&file);
                     match claims {
                         Ok(claims) => Some(claims),
-                        // If the provenance doc is not valid, proceed as if it doesn't
-                        // exist. OpenHCL will not produce attestation claims for
-                        // provenance. It's up to the VM owner's key release policy to
-                        // enforce the presence of provenance claims.
                         Err(err) => {
                             tracing::warn!(
                                 CVM_ALLOWED,
@@ -2150,7 +2149,7 @@ async fn new_underhill_vm(
                 .read_file(vmgs::FileId::PLATFORM_SEED)
                 .await
                 .context("failed to read VMGSID seed doc")?;
-            let derived_vmgsid = underhill_attestation::derive_vmgsid(&vmgsid_file).await?;
+            let derived_vmgsid = underhill_attestation::derive_vmgsid(&vmgsid_file)?;
             if !derived_vmgsid.to_string().eq_ignore_ascii_case(&prov.id) {
                 tracing::error!(CVM_ALLOWED, "provisioning VMGSID mismatch");
                 anyhow::bail!("provisioning VMGSID mismatch");

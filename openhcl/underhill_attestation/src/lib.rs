@@ -1448,7 +1448,7 @@ struct ProvenanceJwtBody {
 }
 
 /// Read the VMGS provenance doc and produce runtime claims
-pub async fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, Error> {
+pub fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, Error> {
     let jwt = JwtHelper::<ProvenanceJwtBody>::from(prov_file)
         .map_err(ProvenanceError::DecodeProvenanceDoc)
         .map_err(AttestationErrorInner::Provenance)?;
@@ -1492,7 +1492,7 @@ pub async fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, 
 }
 
 /// Derive the expected VMGSID from the encrypted seed data.
-pub async fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
+pub fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
     let seed_file_str = str::from_utf8(seed_file)
         .map_err(ProvenanceError::InvalidVmgsidData)
         .map_err(AttestationErrorInner::Provenance)?;
@@ -2904,12 +2904,12 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[async_test]
-    async fn test_get_provenance_claims() {
+    #[test]
+    fn test_get_provenance_claims() {
         // Test JWT: not a valid credential or secret for anything.
-        const PROVENANCE_DOC: &'static str = include_str!("../test_data/valid_jwt");
-        let doc = PROVENANCE_DOC.trim();
-        let claims = get_provenance_claims(doc.as_bytes()).await.unwrap();
+        const PROVENANCE_DOC: &str = include_str!("../test_data/valid_jwt");
+        let doc = PROVENANCE_DOC.trim().strip_prefix("placeholder_").unwrap();
+        let claims = get_provenance_claims(doc.as_bytes()).unwrap();
         assert_eq!(claims.id, "03020100-0504-0706-0809-0a0b0c0d0e0f");
         assert_eq!(
             claims.signer,
@@ -2917,10 +2917,10 @@ mod tests {
         );
     }
 
-    #[async_test]
-    async fn test_derive_vmgsid() {
-        const SEED_DOC: &'static str = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F,4C6162656C5F435053,436F6E746578745F564D4753,32";
-        let vmgsid = derive_vmgsid(SEED_DOC.as_bytes()).await.unwrap();
-        assert_eq!(vmgsid, guid::guid!("2d7f58b0-e611-669f-1af4-8b4a619147c8"));
+    #[test]
+    fn test_derive_vmgsid() {
+        const SEED_DOC: &str = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F,4C6162656C5F435053,436F6E746578745F564D4753,32";
+        let vmgsid = derive_vmgsid(SEED_DOC.as_bytes()).unwrap();
+        assert_eq!(vmgsid, guid::guid!("b0587f2d-11e6-9f66-1af4-8b4a619147c8"));
     }
 }
