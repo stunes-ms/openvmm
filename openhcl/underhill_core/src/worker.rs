@@ -2015,7 +2015,7 @@ async fn new_underhill_vm(
     }
 
     // Get VMGS provenance claims. If the provenance doc can't be read or if it
-    // isn't valid, proceceed as if it doesn't exist. In that case, OpenHCL will
+    // isn't valid, proceed as if it doesn't exist. In that case, OpenHCL will
     // not produce attestation claims for provenance. It's up to the VM owner's
     // key release policy to enforce the presence of provenance claims.
     let prov_claims = if let Some((_, vmgs)) = vmgs.as_mut() {
@@ -2023,23 +2023,21 @@ async fn new_underhill_vm(
         if prov_info.is_ok() {
             vmgs.read_file(vmgs::FileId::PROVENANCE_DOC)
                 .await
-                .or_else(|err| {
+                .inspect_err(|e| {
                     tracing::warn!(
                         CVM_ALLOWED,
-                        error = &err as &dyn std::error::Error,
+                        error = e as &dyn std::error::Error,
                         "failed to read provenance doc"
-                    );
-                    Err(err)
+                    )
                 })
                 .map(|file| {
                     underhill_attestation::get_provenance_claims(&file)
-                        .or_else(|err| {
+                        .inspect_err(|e| {
                             tracing::warn!(
                                 CVM_ALLOWED,
-                                error = &err as &dyn std::error::Error,
+                                error = e as &dyn std::error::Error,
                                 "failed to get provenance claims"
-                            );
-                            Err(err)
+                            )
                         })
                         .ok()
                 })
