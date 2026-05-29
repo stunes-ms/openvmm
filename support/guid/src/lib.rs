@@ -107,7 +107,7 @@ impl Guid {
         }
     }
 
-    /// Helper used by `from_str_private`, `from_str`, and `TryFrom<&[u8]>`.
+    /// Return a new GUID from its string representation as UTF-8 bytes.
     pub const fn parse(value: &[u8]) -> Result<Self, ParseError> {
         // Slicing is not possible in const fn, so use an index offset.
         let offset = if value.len() == 38 {
