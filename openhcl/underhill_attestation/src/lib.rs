@@ -181,14 +181,16 @@ enum ProvenanceError {
     InvalidRootCert,
     #[error("failed to convert VMGSID data")]
     InvalidVmgsidData(std::str::Utf8Error),
-    #[error("failed to parse VMGSID data")]
-    ParseVmgsidData,
-    #[error("failed to decode VMGSID data")]
+    #[error("failed to parse VMGSID seed data")]
+    ParseVmgsidSeedData,
+    #[error("failed to decode VMGSID seed data")]
     DecodeVmgsidData(hex::FromHexError),
     #[error("X509 certificate error")]
     X509Error(crypto::x509::X509Error),
     #[error("SP800-108 KDF error")]
     KdfError(crypto::kbkdf::KbkdfError),
+    #[error("failed to parse VMGSID")]
+    ParseVmgsid(guid::ParseError),
 }
 
 // Operation types for provisioning telemetry.
@@ -1456,39 +1458,45 @@ pub fn get_provenance_claims(prov_file: &[u8]) -> Result<VmgsProvisioner, Error>
         .verify_signature()
         .map_err(ProvenanceError::VerifySignature)
         .map_err(AttestationErrorInner::Provenance)?;
-    if valid {
-        let cert_chain = jwt
-            .cert_chain()
-            .map_err(ProvenanceError::DecodeProvenanceDoc)
-            .map_err(AttestationErrorInner::Provenance)?;
-        let leaf = &cert_chain[0];
 
-        let sn = leaf
-            .subject_common_name()
-            .map_err(ProvenanceError::X509Error)
-            .map_err(AttestationErrorInner::Provenance)?
-            .ok_or(AttestationErrorInner::Provenance(
-                ProvenanceError::MissingLeafCertSubjectName,
-            ))?;
-
-        let root = cert_chain.last().ok_or(AttestationErrorInner::Provenance(
-            ProvenanceError::InvalidRootCert,
-        ))?;
-        let digest = sha_256(
-            &(root
-                .to_der()
-                .map_err(ProvenanceError::X509Error)
-                .map_err(AttestationErrorInner::Provenance)?),
-        );
-        let signer = format!("did:x509:0:sha256:{}:subject:{}", hex::encode(digest), sn);
-        let vmgsid = jwt.jwt.body.vmgsid;
-
-        Ok(VmgsProvisioner { id: vmgsid, signer })
-    } else {
-        Err(AttestationErrorInner::Provenance(
+    if !valid {
+        return Err(Error(AttestationErrorInner::Provenance(
             ProvenanceError::InvalidSignature,
-        ))?
+        )));
     }
+
+    let cert_chain = jwt
+        .cert_chain()
+        .map_err(ProvenanceError::DecodeProvenanceDoc)
+        .map_err(AttestationErrorInner::Provenance)?;
+    let leaf = &cert_chain[0];
+
+    let sn = leaf
+        .subject_common_name()
+        .map_err(ProvenanceError::X509Error)
+        .map_err(AttestationErrorInner::Provenance)?
+        .ok_or(AttestationErrorInner::Provenance(
+            ProvenanceError::MissingLeafCertSubjectName,
+        ))?;
+
+    let root = cert_chain.last().ok_or(AttestationErrorInner::Provenance(
+        ProvenanceError::InvalidRootCert,
+    ))?;
+    let digest = sha_256(
+        &(root
+            .to_der()
+            .map_err(ProvenanceError::X509Error)
+            .map_err(AttestationErrorInner::Provenance)?),
+    );
+    let signer = format!("did:x509:0:sha256:{}:subject:{}", hex::encode(digest), sn);
+    let vmgsid = jwt.jwt.body.vmgsid;
+
+    Ok(VmgsProvisioner {
+        id: Guid::parse(vmgsid.as_bytes())
+            .map_err(ProvenanceError::ParseVmgsid)
+            .map_err(AttestationErrorInner::Provenance)?,
+        signer,
+    })
 }
 
 /// Derive the expected VMGSID from the encrypted seed data.
@@ -1501,7 +1509,7 @@ pub fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
         .map(|s| s.trim())
         .collect::<Vec<&str>>()
         .try_into()
-        .map_err(|_| ProvenanceError::ParseVmgsidData)
+        .map_err(|_| ProvenanceError::ParseVmgsidSeedData)
         .map_err(AttestationErrorInner::Provenance)?;
 
     let seed = hex::decode(seed_hex)
@@ -1770,21 +1778,6 @@ mod tests {
                 None,
             )
             .await
-        }
-    }
-
-    fn new_attestation_vm_config() -> AttestationVmConfig {
-        AttestationVmConfig {
-            current_time: None,
-            root_cert_thumbprint: String::new(),
-            console_enabled: false,
-            interactive_console_enabled: false,
-            secure_boot: false,
-            tpm_enabled: true,
-            tpm_persisted: true,
-            filtered_vpci_devices_allowed: false,
-            vm_unique_id: String::new(),
-            vmgs_provisioner: None,
         }
     }
 
@@ -2461,7 +2454,7 @@ mod tests {
         let get_pair = new_test_get(driver, false, None).await;
 
         let bios_guid = Guid::new_random();
-        let att_cfg = new_attestation_vm_config();
+        let att_cfg = Default::default();
 
         // Ensure VMGS is not encrypted and agent data is empty before the call
         assert!(!vmgs.encrypted());
@@ -2500,7 +2493,7 @@ mod tests {
         let get_pair = new_test_get(driver, true, None).await;
 
         let bios_guid = Guid::new_random();
-        let att_cfg = new_attestation_vm_config();
+        let att_cfg = Default::default();
         let tee = MockTeeCall::new(0x1234);
 
         // Ensure VMGS is not encrypted and agent data is empty before the call
@@ -2586,7 +2579,7 @@ mod tests {
         let get_pair = new_test_get(driver, true, Some(plan)).await;
 
         let bios_guid = Guid::new_random();
-        let att_cfg = new_attestation_vm_config();
+        let att_cfg = Default::default();
         let tee = MockTeeCall::new(0x1234);
 
         // Ensure VMGS is not encrypted and agent data is empty before the call
@@ -2666,7 +2659,7 @@ mod tests {
         let get_pair = new_test_get(driver, true, Some(plan)).await;
 
         let bios_guid = Guid::new_random();
-        let att_cfg = new_attestation_vm_config();
+        let att_cfg = Default::default();
 
         // Ensure VMGS is not encrypted and agent data is empty before the call
         assert!(!vmgs.encrypted());
@@ -2751,7 +2744,7 @@ mod tests {
         let get_pair = new_test_get(driver, true, Some(plan)).await;
 
         let bios_guid = Guid::new_random();
-        let att_cfg = new_attestation_vm_config();
+        let att_cfg = Default::default();
 
         // Ensure VMGS is not encrypted and agent data is empty before the call
         assert!(!vmgs.encrypted());
@@ -2843,7 +2836,7 @@ mod tests {
         let get_pair = new_test_get(driver, true, Some(plan)).await;
 
         let bios_guid = Guid::new_random();
-        let att_cfg = new_attestation_vm_config();
+        let att_cfg = Default::default();
         // Without hardware sealing support
         let tee = MockTeeCallNoGetDerivedKey {};
 

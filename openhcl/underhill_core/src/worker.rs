@@ -2021,30 +2021,30 @@ async fn new_underhill_vm(
     let prov_claims = if let Some((_, vmgs)) = vmgs.as_mut() {
         let prov_info = vmgs.get_file_info(vmgs::FileId::PROVENANCE_DOC);
         if prov_info.is_ok() {
-            match vmgs.read_file(vmgs::FileId::PROVENANCE_DOC).await {
-                Ok(file) => {
-                    let claims = underhill_attestation::get_provenance_claims(&file);
-                    match claims {
-                        Ok(claims) => Some(claims),
-                        Err(err) => {
-                            tracing::warn!(
-                                CVM_ALLOWED,
-                                error = &err as &dyn std::error::Error,
-                                "failed to get provenance claims"
-                            );
-                            None
-                        }
-                    }
-                }
-                Err(err) => {
+            vmgs.read_file(vmgs::FileId::PROVENANCE_DOC)
+                .await
+                .or_else(|err| {
                     tracing::warn!(
                         CVM_ALLOWED,
                         error = &err as &dyn std::error::Error,
                         "failed to read provenance doc"
                     );
-                    None
-                }
-            }
+                    Err(err)
+                })
+                .map(|file| {
+                    underhill_attestation::get_provenance_claims(&file)
+                        .or_else(|err| {
+                            tracing::warn!(
+                                CVM_ALLOWED,
+                                error = &err as &dyn std::error::Error,
+                                "failed to get provenance claims"
+                            );
+                            Err(err)
+                        })
+                        .ok()
+                })
+                .ok()
+                .flatten()
         } else {
             None
         }
@@ -2143,21 +2143,16 @@ async fn new_underhill_vm(
 
     // Check VMGS ID from provisioner
     if let Some(prov) = prov_claims {
-        if let Some(vmgs) = vmgs.as_mut() {
-            let vmgsid_file = vmgs
-                .1
-                .read_file(vmgs::FileId::PLATFORM_SEED)
-                .await
-                .context("failed to read VMGSID seed doc")?;
-            let derived_vmgsid = underhill_attestation::derive_vmgsid(&vmgsid_file)?;
-            if !derived_vmgsid.to_string().eq_ignore_ascii_case(&prov.id) {
-                tracing::error!(CVM_ALLOWED, "provisioning VMGSID mismatch");
-                anyhow::bail!("provisioning VMGSID mismatch");
-            }
-        } else {
-            // VMGS existed earlier but now it doesn't: should not happen.
-            tracing::error!(CVM_ALLOWED, "VMGS not found after reading provenance data");
-            anyhow::bail!("VMGS not found after reading provenance data");
+        let vmgs = vmgs.as_mut().unwrap();
+        let vmgsid_file = vmgs
+            .1
+            .read_file(vmgs::FileId::PLATFORM_SEED)
+            .await
+            .context("failed to read VMGSID seed doc")?;
+        let derived_vmgsid = underhill_attestation::derive_vmgsid(&vmgsid_file)?;
+        if derived_vmgsid != prov.id {
+            tracing::error!(CVM_ALLOWED, "provisioning VMGSID mismatch");
+            anyhow::bail!("provisioning VMGSID mismatch");
         }
     }
 

@@ -5,6 +5,8 @@
 
 #![forbid(unsafe_code)]
 
+use serde::Deserialize;
+use serde::Serialize;
 use std::str::FromStr;
 use thiserror::Error;
 use zerocopy::FromBytes;
@@ -16,7 +18,19 @@ use zerocopy::KnownLayout;
 /// Windows format GUID.
 #[repr(C)]
 #[derive(
-    Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, IntoBytes, FromBytes, Immutable, KnownLayout,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Ord,
+    PartialOrd,
+    IntoBytes,
+    FromBytes,
+    Immutable,
+    KnownLayout,
+    Serialize,
+    Deserialize,
 )]
 #[cfg_attr(
     feature = "mesh",
@@ -108,7 +122,7 @@ impl Guid {
     }
 
     /// Helper used by `from_str_private`, `from_str`, and `TryFrom<&[u8]>`.
-    const fn parse(value: &[u8]) -> Result<Self, ParseError> {
+    pub const fn parse(value: &[u8]) -> Result<Self, ParseError> {
         // Slicing is not possible in const fn, so use an index offset.
         let offset = if value.len() == 38 {
             if value[0] != b'{' || value[37] != b'}' {

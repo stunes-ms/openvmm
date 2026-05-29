@@ -308,6 +308,7 @@ pub struct IgvmAttestAkCertResponseHeader {
 /// `IgvmAttestRequestBase` in raw bytes.
 pub mod runtime_claims {
     use base64_serde::base64_serde_type;
+    use guid::Guid;
     use mesh::MeshPayload;
     use serde::Deserialize;
     use serde::Serialize;
@@ -429,7 +430,7 @@ pub mod runtime_claims {
     #[serde(rename_all = "kebab-case")]
     pub struct VmgsProvisioner {
         /// VMGS ID
-        pub id: String,
+        pub id: Guid,
         /// Signer (root cert thumbprint + leaf subject name as a decentralized
         /// identifier)
         pub signer: String,
@@ -462,5 +463,22 @@ pub mod runtime_claims {
         /// VMGS provenance data
         #[serde(skip_serializing_if = "Option::is_none")]
         pub vmgs_provisioner: Option<VmgsProvisioner>,
+    }
+
+    impl Default for AttestationVmConfig {
+        fn default() -> Self {
+            Self {
+                current_time: None,
+                root_cert_thumbprint: String::new(),
+                console_enabled: false,
+                interactive_console_enabled: false,
+                secure_boot: false,
+                tpm_enabled: true,
+                tpm_persisted: true,
+                filtered_vpci_devices_allowed: false,
+                vm_unique_id: String::new(),
+                vmgs_provisioner: None,
+            }
+        }
     }
 }
