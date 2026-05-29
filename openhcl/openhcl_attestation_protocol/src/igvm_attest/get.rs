@@ -430,6 +430,7 @@ pub mod runtime_claims {
     #[serde(rename_all = "kebab-case")]
     pub struct VmgsProvisioner {
         /// VMGS ID
+        #[serde(with = "serde_helpers::as_string")]
         pub id: Guid,
         /// Signer (root cert thumbprint + leaf subject name as a decentralized
         /// identifier)

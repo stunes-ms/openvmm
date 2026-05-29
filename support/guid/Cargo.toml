@@ -15,7 +15,6 @@ inspect = { workspace = true, optional = true }
 mesh_protobuf = { workspace = true, optional = true }
 
 getrandom.workspace = true
-serde.workspace = true
 thiserror.workspace = true
 zerocopy.workspace = true
 [target.'cfg(windows)'.dependencies]

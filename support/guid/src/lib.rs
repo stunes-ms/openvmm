@@ -5,8 +5,6 @@
 
 #![forbid(unsafe_code)]
 
-use serde::Deserialize;
-use serde::Serialize;
 use std::str::FromStr;
 use thiserror::Error;
 use zerocopy::FromBytes;
@@ -18,19 +16,7 @@ use zerocopy::KnownLayout;
 /// Windows format GUID.
 #[repr(C)]
 #[derive(
-    Copy,
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Ord,
-    PartialOrd,
-    IntoBytes,
-    FromBytes,
-    Immutable,
-    KnownLayout,
-    Serialize,
-    Deserialize,
+    Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, IntoBytes, FromBytes, Immutable, KnownLayout,
 )]
 #[cfg_attr(
     feature = "mesh",

@@ -2903,7 +2903,10 @@ mod tests {
         const PROVENANCE_DOC: &str = include_str!("../test_data/valid_jwt");
         let doc = PROVENANCE_DOC.trim().strip_prefix("placeholder_").unwrap();
         let claims = get_provenance_claims(doc.as_bytes()).unwrap();
-        assert_eq!(claims.id, "03020100-0504-0706-0809-0a0b0c0d0e0f");
+        assert_eq!(
+            claims.id,
+            guid::guid!("03020100-0504-0706-0809-0a0b0c0d0e0f")
+        );
         assert_eq!(
             claims.signer,
             "did:x509:0:sha256:ea76599d86897382aa519ff2bc0fa6b9c15d60da2ebe53e72139cd317b0797ed:subject:fican.cvmprovisioningservice.core.azure-test.net"
