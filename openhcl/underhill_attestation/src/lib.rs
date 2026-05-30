@@ -180,17 +180,18 @@ enum ProvenanceError {
     #[error("invalid root certificate")]
     InvalidRootCert,
     #[error("failed to convert VMGSID data")]
-    InvalidVmgsidData(std::str::Utf8Error),
+    #[error("failed to convert VMGSID data")]
+    InvalidVmgsidData(#[source] std::str::Utf8Error),
     #[error("failed to parse VMGSID seed data")]
     ParseVmgsidSeedData,
     #[error("failed to decode VMGSID seed data")]
-    DecodeVmgsidData(hex::FromHexError),
+    DecodeVmgsidData(#[source] hex::FromHexError),
     #[error("X509 certificate error")]
-    X509Error(crypto::x509::X509Error),
+    X509Error(#[source] crypto::x509::X509Error),
     #[error("SP800-108 KDF error")]
-    KdfError(crypto::kbkdf::KbkdfError),
+    KdfError(#[source] crypto::kbkdf::KbkdfError),
     #[error("failed to parse VMGSID")]
-    ParseVmgsid(guid::ParseError),
+    ParseVmgsid(#[source] guid::ParseError),
 }
 
 // Operation types for provisioning telemetry.
