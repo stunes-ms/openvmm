@@ -180,7 +180,6 @@ enum ProvenanceError {
     #[error("invalid root certificate")]
     InvalidRootCert,
     #[error("failed to convert VMGSID data")]
-    #[error("failed to convert VMGSID data")]
     InvalidVmgsidData(#[source] std::str::Utf8Error),
     #[error("failed to parse VMGSID seed data")]
     ParseVmgsidSeedData,
