@@ -1504,21 +1504,27 @@ pub fn derive_vmgsid(seed_file: &[u8]) -> Result<Guid, Error> {
     let seed_file_str = str::from_utf8(seed_file)
         .map_err(ProvenanceError::InvalidVmgsidData)
         .map_err(AttestationErrorInner::Provenance)?;
-    let [seed_hex, label_hex, context_hex, _seed_len_str] = seed_file_str
-        .split(',')
-        .map(|s| s.trim())
-        .collect::<Vec<&str>>()
-        .try_into()
-        .map_err(|_| ProvenanceError::ParseVmgsidSeedData)
-        .map_err(AttestationErrorInner::Provenance)?;
 
-    let seed = hex::decode(seed_hex)
+    // The seed file has four fields separated by commas, but the fourth field
+    // is just the length of the first field. Allow the fourth field to be
+    // missing.
+    let parts = seed_file_str
+        .split(",")
+        .map(|s| s.trim())
+        .collect::<Vec<&str>>();
+    if parts.len() < 3 {
+        Err(AttestationErrorInner::Provenance(
+            ProvenanceError::ParseVmgsidSeedData,
+        ))?;
+    }
+
+    let seed = hex::decode(parts[0])
         .map_err(ProvenanceError::DecodeVmgsidData)
         .map_err(AttestationErrorInner::Provenance)?;
-    let label = hex::decode(label_hex)
+    let label = hex::decode(parts[1])
         .map_err(ProvenanceError::DecodeVmgsidData)
         .map_err(AttestationErrorInner::Provenance)?;
-    let context = hex::decode(context_hex)
+    let context = hex::decode(parts[2])
         .map_err(ProvenanceError::DecodeVmgsidData)
         .map_err(AttestationErrorInner::Provenance)?;
 
