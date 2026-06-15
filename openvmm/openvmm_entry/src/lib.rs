@@ -1260,6 +1260,7 @@ async fn vm_config_from_command_line(
             default_boot_always_attempt: opt.default_boot_always_attempt,
             bios_guid,
             enable_vmbus: !opt.no_vmbus,
+            force_dma_bounce: opt.uefi_force_dma_bounce,
         };
     } else {
         // Linux Direct
@@ -1439,6 +1440,7 @@ async fn vm_config_from_command_line(
                         }
                     },
                     hv_sint_enabled: false,
+                    force_dma_bounce_enabled: opt.uefi_force_dma_bounce,
                 }
                 .into_resource(),
             ),

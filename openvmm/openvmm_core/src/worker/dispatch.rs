@@ -2995,6 +2995,7 @@ impl LoadedVmInner {
                 default_boot_always_attempt,
                 bios_guid,
                 enable_vmbus,
+                force_dma_bounce,
             } => {
                 let madt = acpi_builder.build_madt();
                 let srat = acpi_builder.build_srat();
@@ -3014,6 +3015,7 @@ impl LoadedVmInner {
                     default_boot_always_attempt,
                     bios_guid,
                     vmbus: enable_vmbus,
+                    force_dma_bounce,
                 };
                 let regs =
                     super::vm_loaders::uefi::load_uefi(&super::vm_loaders::uefi::LoadUefiParams {
