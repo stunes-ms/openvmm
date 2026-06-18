@@ -389,8 +389,16 @@ impl ConsommeState {
         // it with a unique virtual address so that the guest routes the reply
         // back through the virtual adapter and we can reverse-translate it on the
         // outgoing path.
+        //
+        // This is skipped for endpoints that are themselves dedicated to
+        // loopback traffic (their `client_ip` is a loopback address, as used by
+        // WSL's VirtioProxy localhost forwarding). The guest routes those
+        // replies back through this adapter based on the loopback source, so
+        // rewriting the source out of the loopback range would break the return
+        // path.
+        let is_loopback_adapter = params.client_ip.is_loopback();
         let src = match remote_addr {
-            SocketAddr::V4(v4) if params.is_local_address(remote_addr) => {
+            SocketAddr::V4(v4) if params.is_local_address(remote_addr) && !is_loopback_adapter => {
                 let subnet_base =
                     Ipv4Addr::from(u32::from(params.gateway_ip) & u32::from(params.net_mask));
                 let virtual_ip = local_addr_map.get_or_allocate_v4(
@@ -408,7 +416,7 @@ impl ConsommeState {
                     }
                 }
             }
-            SocketAddr::V6(v6) if params.is_local_address(remote_addr) => {
+            SocketAddr::V6(v6) if params.is_local_address(remote_addr) && !is_loopback_adapter => {
                 let virtual_ip = local_addr_map.get_or_allocate_v6(
                     *v6.ip(),
                     params.gateway_link_local_ipv6,
