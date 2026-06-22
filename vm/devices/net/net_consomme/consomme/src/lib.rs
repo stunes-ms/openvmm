@@ -179,6 +179,9 @@ pub struct ConsommeParams {
     /// If true, skip checks for host IPv6 support and assume the host has a
     /// routable IPv6 address.
     pub skip_ipv6_checks: bool,
+    /// If true, allow guest traffic destined for host-local addresses
+    /// (loopback, unspecified, link-local).
+    pub allow_host_local_access: bool,
     /// Per-connection TCP receive ring buffer bounds (guest-to-host).
     pub tcp_rx_buffer: TcpBufferBounds,
     /// Per-connection TCP transmit ring buffer bounds (host-to-guest).
@@ -243,6 +246,7 @@ impl ConsommeParams {
             // Per RFC 4787, UDP NAT bindings, by default, should timeout after 5 minutes, but can be configured.
             udp_timeout: Duration::from_secs(300),
             skip_ipv6_checks: false,
+            allow_host_local_access: false,
             tcp_rx_buffer: DEFAULT_TCP_BUFFER_BOUNDS,
             tcp_tx_buffer: DEFAULT_TCP_BUFFER_BOUNDS,
         })
@@ -658,6 +662,10 @@ pub enum DropReason {
     /// since IP reassembly is not supported.
     #[error("packet fragmentation is not supported")]
     FragmentedPacket,
+    /// The destination address is not allowed (e.g., loopback, unspecified,
+    /// or link-local when host-local access is disabled).
+    #[error("destination address not allowed")]
+    DestinationNotAllowed,
 }
 
 /// An error from a port bind or unbind operation.
@@ -714,6 +722,20 @@ impl IpAddresses {
             IpAddresses::V6(addrs) => IpAddress::Ipv6(addrs.dst_addr),
         }
     }
+}
+
+/// Returns `true` if the given IPv4 destination is host-local
+/// (loopback, unspecified, or link-local) and should be blocked
+/// when `allow_host_local_access` is disabled.
+fn is_blocked_host_local_ipv4(addr: Ipv4Address) -> bool {
+    addr.is_loopback() || addr.is_unspecified() || addr.is_link_local()
+}
+
+/// Returns `true` if the given IPv6 destination is host-local
+/// (loopback, unspecified, or link-local) and should be blocked
+/// when `allow_host_local_access` is disabled.
+fn is_blocked_host_local_ipv6(addr: Ipv6Address) -> bool {
+    addr.is_loopback() || addr.is_unspecified() || addr.is_unicast_link_local()
 }
 
 /// Returns `true` if two IPv4 addresses are in the same subnet given a mask.
@@ -934,6 +956,13 @@ impl<T: Client> Access<'_, T> {
             return Err(DropReason::Ipv4Checksum);
         }
 
+        // Reject guest traffic to host-local-only destinations.
+        if !self.inner.state.params.allow_host_local_access
+            && is_blocked_host_local_ipv4(ipv4.dst_addr())
+        {
+            return Err(DropReason::DestinationNotAllowed);
+        }
+
         let addresses = Ipv4Addresses {
             src_addr: ipv4.src_addr(),
             dst_addr: ipv4.dst_addr(),
@@ -974,6 +1003,13 @@ impl<T: Client> Access<'_, T> {
             if payload.len() < required_len {
                 return Err(DropReason::MalformedPacket);
             }
+        }
+
+        // Reject guest traffic to host-local-only destinations.
+        if !self.inner.state.params.allow_host_local_access
+            && is_blocked_host_local_ipv6(ipv6.dst_addr())
+        {
+            return Err(DropReason::DestinationNotAllowed);
         }
 
         let next_header = ipv6.next_header();
@@ -1056,137 +1092,4 @@ impl<T: Client> Access<'_, T> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use smoltcp::wire::Ipv6Address;
-    use smoltcp::wire::Ipv6Repr;
-
-    #[test]
-    fn test_is_same_ipv6_subnet_basic() {
-        let a = Ipv6Address::new(0x2001, 0x0db8, 0x0001, 0, 0, 0, 0, 1);
-        let b = Ipv6Address::new(0x2001, 0x0db8, 0x0001, 0, 0, 0, 0, 2);
-        assert!(is_same_ipv6_subnet(a, b, 48));
-        assert!(!is_same_ipv6_subnet(a, b, 128));
-    }
-
-    #[test]
-    fn test_is_same_ipv6_subnet_prefix_zero() {
-        let a = Ipv6Address::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1);
-        let b = Ipv6Address::new(0xfe80, 0, 0, 0, 0, 0, 0, 1);
-        assert!(is_same_ipv6_subnet(a, b, 0));
-    }
-
-    #[test]
-    fn test_is_same_ipv6_subnet_prefix_128_exact_match() {
-        let a = Ipv6Address::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1);
-        assert!(is_same_ipv6_subnet(a, a, 128));
-    }
-
-    #[test]
-    fn test_is_same_ipv6_subnet_prefix_128_no_match() {
-        let a = Ipv6Address::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1);
-        let b = Ipv6Address::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 2);
-        assert!(!is_same_ipv6_subnet(a, b, 128));
-    }
-
-    #[test]
-    fn test_is_same_ipv6_subnet_prefix_above_128_does_not_panic() {
-        let a = Ipv6Address::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1);
-        let b = Ipv6Address::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 2);
-        // prefix_len > 128 should behave like /128 (exact match), not panic.
-        assert!(is_same_ipv6_subnet(a, a, 200));
-        assert!(!is_same_ipv6_subnet(a, b, 255));
-    }
-
-    fn eui64_routable_address(params: &ConsommeParams) -> Ipv6Address {
-        let mut octets = ConsommeParams::compute_link_local_address(params.client_mac).octets();
-        octets[..8].copy_from_slice(&[0xfd, 0x00, 0x0d, 0xb8, 0, 0, 0, 0]);
-        Ipv6Address::from_octets(octets)
-    }
-
-    #[test]
-    fn infer_client_link_local_from_routable_with_matching_eui64_iid() {
-        let mut params = ConsommeParams::new().unwrap();
-        params.client_ip_ipv6 = None;
-        let expected_link_local = ConsommeParams::compute_link_local_address(params.client_mac);
-
-        params.infer_client_link_local_from_routable(eui64_routable_address(&params), "test");
-
-        assert_eq!(params.client_ip_ipv6, Some(expected_link_local));
-    }
-
-    #[test]
-    fn infer_client_link_local_from_routable_ignores_privacy_iid() {
-        let mut params = ConsommeParams::new().unwrap();
-        params.client_ip_ipv6 = None;
-        let privacy_address = Ipv6Address::new(0xfd00, 0x0db8, 0, 0, 1, 2, 3, 4);
-
-        params.infer_client_link_local_from_routable(privacy_address, "test");
-
-        assert_eq!(params.client_ip_ipv6, None);
-    }
-
-    #[test]
-    fn infer_client_link_local_from_routable_does_not_overwrite_existing_address() {
-        let mut params = ConsommeParams::new().unwrap();
-        let existing_address = Ipv6Address::new(0xfe80, 0, 0, 0, 0, 0, 0, 0x1234);
-        params.client_ip_ipv6 = Some(existing_address);
-
-        params.infer_client_link_local_from_routable(eui64_routable_address(&params), "test");
-
-        assert_eq!(params.client_ip_ipv6, Some(existing_address));
-    }
-
-    struct TestClient;
-
-    impl Client for TestClient {
-        fn driver(&self) -> &dyn Driver {
-            unreachable!("IPv6 address learning tests do not use the client driver")
-        }
-
-        fn recv(&mut self, _data: &[u8], _checksum: &ChecksumState) {}
-
-        fn rx_mtu(&mut self) -> usize {
-            MIN_MTU
-        }
-    }
-
-    fn learn_from_ipv6_traffic(params: &mut ConsommeParams, src_addr: Ipv6Address) {
-        params.skip_ipv6_checks = true;
-        let gateway_ip = params.gateway_link_local_ipv6;
-        let mut consomme = Consomme::new(std::mem::replace(params, ConsommeParams::new().unwrap()));
-        let mut client = TestClient;
-        let frame = EthernetRepr {
-            src_addr: consomme.state.params.client_mac,
-            dst_addr: consomme.state.params.gateway_mac_ipv6,
-            ethertype: EthernetProtocol::Ipv6,
-        };
-        let mut payload = [0; smoltcp::wire::IPV6_HEADER_LEN];
-        Ipv6Repr {
-            src_addr,
-            dst_addr: gateway_ip,
-            next_header: IpProtocol::Tcp,
-            payload_len: 0,
-            hop_limit: 64,
-        }
-        .emit(&mut Ipv6Packet::new_unchecked(&mut payload));
-
-        let _ = consomme
-            .access(&mut client)
-            .handle_ipv6(&frame, &payload, &ChecksumState::TCP6);
-        *params = consomme.state.params;
-    }
-
-    #[test]
-    fn handle_ipv6_updates_link_local_from_traffic() {
-        let mut params = ConsommeParams::new().unwrap();
-        params.client_ip_ipv6 = None;
-        let first_address = Ipv6Address::new(0xfe80, 0, 0, 0, 0, 0, 0, 1);
-        let second_address = Ipv6Address::new(0xfe80, 0, 0, 0, 0, 0, 0, 2);
-
-        learn_from_ipv6_traffic(&mut params, first_address);
-        learn_from_ipv6_traffic(&mut params, second_address);
-
-        assert_eq!(params.client_ip_ipv6, Some(second_address));
-    }
-}
+mod tests;
