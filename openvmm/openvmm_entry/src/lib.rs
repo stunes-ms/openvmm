@@ -189,6 +189,7 @@ struct VmResources {
     kvp_ic: Option<mesh::Sender<hyperv_ic_resources::kvp::KvpConnectRpc>>,
     scsi_rpc: Option<mesh::Sender<ScsiControllerRequest>>,
     nvme_vtl2_rpc: Option<mesh::Sender<NvmeControllerRequest>>,
+    consomme_rpc: Option<mesh::Sender<net_backend_resources::consomme::ConsommeRequest>>,
     ged_rpc: Option<mesh::Sender<get_resources::ged::GuestEmulationRequest>>,
     vtl2_settings: Option<vtl2_settings_proto::Vtl2Settings>,
     /// Receives dirty rectangles from the synthetic video device for the VNC worker.
@@ -2064,9 +2065,20 @@ fn parse_endpoint(
                     }
                 })
                 .collect();
+            // Only wire the bind/unbind RPC channel to the first consomme
+            // endpoint. Additional consomme NICs work normally but cannot be
+            // targeted by runtime bind/unbind commands.
+            let recv = if resources.consomme_rpc.is_none() {
+                let (send, recv) = mesh::channel();
+                resources.consomme_rpc = Some(send);
+                Some(recv)
+            } else {
+                None
+            };
             net_backend_resources::consomme::ConsommeHandle {
                 cidr: cidr.clone(),
                 ports,
+                recv,
             }
             .into_resource()
         }
@@ -2724,6 +2736,7 @@ async fn run_control_inner(
             vm_controller_events: vm_controller_event_recv,
             scsi_rpc: resources.scsi_rpc,
             nvme_vtl2_rpc: resources.nvme_vtl2_rpc,
+            consomme_rpc: resources.consomme_rpc,
             shutdown_ic: resources.shutdown_ic,
             kvp_ic: resources.kvp_ic,
             console_in: resources.console_in,

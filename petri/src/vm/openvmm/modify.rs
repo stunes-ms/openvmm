@@ -91,6 +91,7 @@ impl PetriVmConfigOpenVmm {
         let endpoint = net_backend_resources::consomme::ConsommeHandle {
             cidr: None,
             ports: Vec::new(),
+            recv: None,
         }
         .into_resource();
         if let Some(vtl2_settings) = self.runtime_config.vtl2_settings.as_mut() {
@@ -136,6 +137,7 @@ impl PetriVmConfigOpenVmm {
         let endpoint = net_backend_resources::consomme::ConsommeHandle {
             cidr: None,
             ports: Vec::new(),
+            recv: None,
         }
         .into_resource();
         self.config.pcie_devices.push(PcieDeviceConfig {
@@ -185,6 +187,7 @@ impl PetriVmConfigOpenVmm {
         let endpoint = net_backend_resources::consomme::ConsommeHandle {
             cidr: None,
             ports: Vec::new(),
+            recv: None,
         }
         .into_resource();
 
@@ -223,6 +226,7 @@ impl PetriVmConfigOpenVmm {
                 host_port: net_backend_resources::consomme::HostPort::Dynamic(port_send),
                 guest_port: pipette_client::PIPETTE_PORT as u16,
             }],
+            recv: None,
         }
         .into_resource();
         self.config.pcie_devices.push(PcieDeviceConfig {
