@@ -9,6 +9,8 @@ use crate::msi::MsiTarget;
 use crate::spec::caps::CapabilityId;
 use crate::spec::caps::msix::MsixCapabilityHeader;
 use crate::spec::caps::msix::MsixTableEntryIdx;
+use chipset_device::pci::ByteEnabledDwordRead;
+use chipset_device::pci::ByteEnabledDwordWrite;
 use inspect::Inspect;
 use inspect::InspectMut;
 use pal_event::Event;
@@ -60,41 +62,46 @@ impl PciCapability for MsixCapability {
         12
     }
 
-    fn read_u32(&self, offset: u16) -> u32 {
+    fn read(&self, offset: u16, mut value: ByteEnabledDwordRead<'_>) {
         match MsixCapabilityHeader(offset) {
             MsixCapabilityHeader::CONTROL_CAPS => {
-                CapabilityId::MSIX.0 as u32
-                    | ((self.count as u32 - 1) | if self.state.lock().enabled { 0x8000 } else { 0 })
-                        << 16
+                value.set_low_high(
+                    CapabilityId::MSIX.0.into(),
+                    (self.count - 1) | if self.state.lock().enabled { 0x8000 } else { 0 },
+                );
             }
-            MsixCapabilityHeader::OFFSET_TABLE => self.config_table_location.read_u32(),
-            MsixCapabilityHeader::OFFSET_PBA => self.pending_bits_location.read_u32(),
+            MsixCapabilityHeader::OFFSET_TABLE => value.set(self.config_table_location.read_u32()),
+            MsixCapabilityHeader::OFFSET_PBA => value.set(self.pending_bits_location.read_u32()),
             _ => panic!("Unreachable read offset {}", offset),
         }
     }
 
-    fn write_u32(&mut self, offset: u16, val: u32) {
+    fn write(&mut self, offset: u16, val: ByteEnabledDwordWrite) {
         match MsixCapabilityHeader(offset) {
             MsixCapabilityHeader::CONTROL_CAPS => {
-                let enabled = val & 0x80000000 != 0;
-                let mut state = self.state.lock();
-                let was_enabled = state.enabled;
-                state.enabled = enabled;
-                if was_enabled && !enabled {
-                    for entry in &mut state.vectors {
-                        if entry.is_enabled(true) {
-                            entry.msi.disable();
+                const MSIX_ENABLE_BIT_MASK: u32 = 0x8000_0000;
+                if val.valid_mask() & MSIX_ENABLE_BIT_MASK != 0 {
+                    let mut state = self.state.lock();
+                    let was_enabled = state.enabled;
+                    let new_enabled = (val.extract() & MSIX_ENABLE_BIT_MASK) != 0;
+
+                    state.enabled = new_enabled;
+                    if was_enabled && !new_enabled {
+                        for entry in &mut state.vectors {
+                            if entry.is_enabled(true) {
+                                entry.msi.disable();
+                            }
                         }
-                    }
-                } else if enabled && !was_enabled {
-                    for entry in &mut state.vectors {
-                        if entry.is_enabled(true) {
-                            entry.msi.enable(
-                                entry.state.address,
-                                entry.state.data,
-                                entry.state.is_pending,
-                            );
-                            entry.state.is_pending = false;
+                    } else if new_enabled && !was_enabled {
+                        for entry in &mut state.vectors {
+                            if entry.is_enabled(true) {
+                                entry.msi.enable(
+                                    entry.state.address,
+                                    entry.state.data,
+                                    entry.state.is_pending,
+                                );
+                                entry.state.is_pending = false;
+                            }
                         }
                     }
                 }
@@ -606,7 +613,10 @@ mod save_restore {
 mod tests {
     use super::*;
     use crate::bus_range::AssignedBusRange;
-    use crate::{msi::MsiConnection, test_helpers::TestPciInterruptController};
+    use crate::msi::MsiConnection;
+    use crate::test_helpers::TestPciInterruptController;
+    use crate::test_helpers::read_cap_u32;
+    use crate::test_helpers::write_cap_u32;
 
     #[test]
     fn msix_check() {
@@ -615,11 +625,11 @@ mod tests {
         let msi_controller = TestPciInterruptController::new();
         msi_conn.connect(msi_controller.signal_msi());
         // check capabilities
-        assert_eq!(cap.read_u32(0), 0x3f0011);
-        assert_eq!(cap.read_u32(4), 2);
-        assert_eq!(cap.read_u32(8), 0x402);
-        cap.write_u32(0, 0xffffffff);
-        assert_eq!(cap.read_u32(0), 0x803f0011);
+        assert_eq!(read_cap_u32(&cap, 0), 0x3f0011);
+        assert_eq!(read_cap_u32(&cap, 4), 2);
+        assert_eq!(read_cap_u32(&cap, 8), 0x402);
+        write_cap_u32(&mut cap, 0, 0xffffffff);
+        assert_eq!(read_cap_u32(&cap, 0), 0x803f0011);
         // check BAR
         // Vector[0]
         assert_eq!(msix.read_u32(0), 0);
@@ -746,7 +756,7 @@ mod tests {
         }
 
         // Enable MSI-X globally.
-        cap.write_u32(0, 0x80000000);
+        write_cap_u32(&mut cap, 0, 0x80000000);
 
         // Program vector 0 addr/data (still masked — control starts at 1).
         msix.write_u32(0, 0xFEE00000); // addr_lo
@@ -788,7 +798,7 @@ mod tests {
         }
 
         // Enable MSI-X, program and unmask vector 0.
-        cap.write_u32(0, 0x80000000);
+        write_cap_u32(&mut cap, 0, 0x80000000);
         msix.write_u32(0, 0xFEE00000);
         msix.write_u32(8, 0x42);
         msix.write_u32(12, 0); // unmask
@@ -817,7 +827,7 @@ mod tests {
         }
 
         // Enable, program, and unmask both vectors.
-        cap.write_u32(0, 0x80000000);
+        write_cap_u32(&mut cap, 0, 0x80000000);
         for v in 0..2u64 {
             msix.write_u32(v * 16, 0xFEE00000);
             msix.write_u32(v * 16 + 8, (v + 1) as u32);
@@ -827,7 +837,7 @@ mod tests {
         calls[1].lock().clear();
 
         // Disable MSI-X globally.
-        cap.write_u32(0, 0);
+        write_cap_u32(&mut cap, 0, 0);
 
         // Both vectors should have been disabled.
         assert!(calls[0].lock().contains(&RouteCall::ClearMsi));
@@ -849,7 +859,7 @@ mod tests {
             .collect();
 
         // Enable MSI-X but leave vectors masked (control = 1 by default).
-        cap.write_u32(0, 0x80000000);
+        write_cap_u32(&mut cap, 0, 0x80000000);
 
         // Simulate a pending interrupt on vector 0 by signaling the event.
         events[0].signal();
@@ -874,7 +884,7 @@ mod tests {
         msix.interrupt(0).unwrap().event();
 
         // Enable, program, unmask.
-        cap.write_u32(0, 0x80000000);
+        write_cap_u32(&mut cap, 0, 0x80000000);
         msix.write_u32(0, 0xFEE00000);
         msix.write_u32(8, 0x42);
         msix.write_u32(12, 0);
