@@ -26,7 +26,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn: []
   condition: and(succeeded(), not(canceled()))
   variables:
@@ -116,7 +116,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 0 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 0 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 0 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -223,7 +228,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -276,7 +281,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 15 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 15 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 15 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -542,7 +552,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -599,7 +609,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 14 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 14 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 14 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -826,7 +841,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -924,7 +939,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 13 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 13 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 13 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -1104,7 +1124,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -1162,7 +1182,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 12 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 12 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 12 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -1386,7 +1411,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -1452,7 +1477,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 11 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 11 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 11 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -1746,7 +1776,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -1800,7 +1830,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 10 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 10 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 10 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -1970,7 +2005,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -2051,7 +2086,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 9 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 9 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 9 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -2321,7 +2361,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -2398,7 +2438,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 8 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 8 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 8 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -2608,7 +2653,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -2722,7 +2767,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 7 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 7 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 7 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -2902,7 +2952,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -3008,7 +3058,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 6 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 6 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 6 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -3105,7 +3160,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -3219,7 +3274,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 5 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 5 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 5 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -3394,7 +3454,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -3500,7 +3560,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 4 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 4 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 4 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -3593,7 +3658,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -3666,7 +3731,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 3 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 3 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 3 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -3886,7 +3956,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -3988,7 +4058,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 2 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 2 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 2 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -4058,7 +4133,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals ubuntu2404-amd64
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   - job2
@@ -4193,7 +4268,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 19 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 19 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 19 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -4305,7 +4385,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   - job11
@@ -4485,7 +4565,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 18 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 18 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 18 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -4607,7 +4692,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-intel-centralus
+    name: openvmm-ado-intel-westus3-v6
   dependsOn:
   - job0
   - job12
@@ -4787,7 +4872,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 17 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 17 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 17 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -4902,7 +4992,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-intel-centralus
+    name: openvmm-ado-intel-westus3-v6
   dependsOn:
   - job0
   - job11
@@ -5082,7 +5172,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 16 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 16 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 16 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
@@ -5204,7 +5299,7 @@ jobs:
   pool:
     demands:
     - ImageOverride -equals win-amd64-v2
-    name: openvmm-ado-amd-westus2
+    name: openvmm-ado-amd-westus2-v6
   dependsOn:
   - job0
   condition: and(succeeded(), not(canceled()))
@@ -5295,7 +5390,12 @@ jobs:
     submodules: recursive
     displayName: checkout repo openvmm
     condition: and(eq(variables['FLOWEY_CONDITION'], true), succeeded(), not(canceled()))
-  - bash: $(FLOWEY_BIN) e 1 flowey_lib_common::git_checkout 2
+  - bash: |-
+      set -e
+      $FLOWEY_BIN v 1 'flowey_lib_common::git_checkout:4:flowey_lib_common/src/git_checkout.rs:402:29' --is-raw-string update --env-source Pipeline.Workspace <<'EOF'
+      $(Pipeline.Workspace)
+      EOF
+      $(FLOWEY_BIN) e 1 flowey_lib_common::git_checkout 3
     displayName: report cloned repo directories
   - bash: |-
       set -e
