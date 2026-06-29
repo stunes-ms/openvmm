@@ -5296,6 +5296,7 @@ dependencies = [
  "fs-err",
  "futures",
  "futures-concurrency",
+ "guid",
  "inspect",
  "kmsg",
  "mesh",
