@@ -26,6 +26,8 @@ use cfg_if::cfg_if;
 use chipset_device::io::IoResult;
 use chipset_device::pci::ByteEnabledDwordRead;
 use chipset_device::pci::ByteEnabledDwordWrite;
+use chipset_device::pci::PciConfigAccessType;
+use chipset_device::pci::PciConfigAddress;
 use chipset_device_resources::IRQ_LINE_SET;
 use chipset_resources::LEGACY_CHIPSET_PCI_BUS_NAME;
 use chipset_resources::cmos_rtc_time_source::SystemTimeClockHandle;
@@ -4151,10 +4153,8 @@ impl pci_bus::GenericPciBusDevice for WeakMutexPciBusDevice {
 
     fn pci_cfg_read_with_routing(
         &mut self,
-        secondary_bus: u8,
-        target_bus: u8,
-        function: u8,
-        offset: u16,
+        access_type: PciConfigAccessType,
+        address: PciConfigAddress,
         value: ByteEnabledDwordRead<'_>,
     ) -> Option<IoResult> {
         Some(
@@ -4162,16 +4162,14 @@ impl pci_bus::GenericPciBusDevice for WeakMutexPciBusDevice {
                 .upgrade()?
                 .lock()
                 .supports_pci()?
-                .pci_cfg_read_with_routing(secondary_bus, target_bus, function, offset, value),
+                .pci_cfg_read_with_routing(access_type, address, value),
         )
     }
 
     fn pci_cfg_write_with_routing(
         &mut self,
-        secondary_bus: u8,
-        target_bus: u8,
-        function: u8,
-        offset: u16,
+        access_type: PciConfigAccessType,
+        address: PciConfigAddress,
         value: ByteEnabledDwordWrite,
     ) -> Option<IoResult> {
         Some(
@@ -4179,7 +4177,7 @@ impl pci_bus::GenericPciBusDevice for WeakMutexPciBusDevice {
                 .upgrade()?
                 .lock()
                 .supports_pci()?
-                .pci_cfg_write_with_routing(secondary_bus, target_bus, function, offset, value),
+                .pci_cfg_write_with_routing(access_type, address, value),
         )
     }
 }
