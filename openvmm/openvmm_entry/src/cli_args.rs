@@ -135,10 +135,10 @@ Size suffixes accept K, M, G, and T, optionally followed by B.
 Options:
     size=<SIZE>              guest RAM size, default 1GB
     shared=on|off            use shared file-backed RAM, default on
-    prefetch=on|off          pre-populate shared RAM mappings
+    prefetch=on|off          pre-populate guest RAM mappings
     thp=on|off               mark private RAM as THP-eligible; requires shared=off
-    hugepages=on|off         allocate RAM from Linux hugetlb pages
-    hugepage_size=<SIZE>     hugetlb page size, default 2MB; requires hugepages=on
+    hugepages=on|off         allocate RAM from hugetlb/large pages (Linux, Windows)
+    hugepage_size=<SIZE>     hugepage size, default 2MB; requires hugepages=on
     file=<PATH>              use an existing file as guest RAM backing
 
 Examples:
@@ -165,10 +165,10 @@ Syntax: key=value[,key=value...]
 Options:
     size=<SIZE>              RAM for this node (required)
     shared=on|off            use shared file-backed RAM, default on
-    prefetch=on|off          pre-populate shared RAM mappings
+    prefetch=on|off          pre-populate guest RAM mappings
     thp=on|off               mark private RAM as THP-eligible; requires shared=off
-    hugepages=on|off         allocate RAM from hugetlb pages
-    hugepage_size=<SIZE>     hugetlb page size; requires hugepages=on
+    hugepages=on|off         allocate RAM from hugetlb/large pages (Linux, Windows)
+    hugepage_size=<SIZE>     hugepage size, default 2MB; requires hugepages=on
     host_numa_node=<N>       bind allocation to host NUMA node N
     vps=<LIST>               explicit VP indices (e.g. "[0,1,2,3]")
 
@@ -1258,6 +1258,12 @@ impl Options {
     }
 
     /// Validates combinations that span the new `--memory` parser and legacy aliases.
+    ///
+    /// Only checks that cannot be expressed elsewhere live here. Conflicts
+    /// within a single `--memory` string are enforced by the parser, and
+    /// semantic constraints (platform support, private-vs-shared, huge pages
+    /// vs. legacy RAM, etc.) are enforced by the membacking builder at VM
+    /// build time; those are not duplicated here.
     pub fn validate_memory_options(&self) -> anyhow::Result<()> {
         if self.memory.file.is_some() && self.deprecated_memory_backing_file.is_some() {
             anyhow::bail!("--memory file=... conflicts with --memory-backing-file");
@@ -1267,26 +1273,6 @@ impl Options {
         }
         if self.memory.shared == Some(true) && self.deprecated_private_memory {
             anyhow::bail!("--memory shared=on conflicts with --private-memory");
-        }
-        if self.memory_backing_file().is_some() && self.private_memory() {
-            anyhow::bail!("file-backed memory conflicts with private memory");
-        }
-        if self.transparent_hugepages() && !self.private_memory() {
-            anyhow::bail!("transparent huge pages requires private memory mode");
-        }
-        if self.memory.hugepages {
-            if !cfg!(target_os = "linux") {
-                anyhow::bail!("hugepages are only supported on Linux");
-            }
-            if self.private_memory() {
-                anyhow::bail!("hugepages conflict with private memory");
-            }
-            if self.memory_backing_file().is_some() || self.restore_snapshot.is_some() {
-                anyhow::bail!("hugepages conflict with file-backed memory");
-            }
-            if self.pcat {
-                anyhow::bail!("hugepages conflict with x86 legacy RAM splitting");
-            }
         }
         Ok(())
     }
@@ -5156,24 +5142,6 @@ mod tests {
     fn test_memory_options_reject_conflicting_legacy_aliases() {
         let opt = Options::try_parse_from(["openvmm", "--memory", "shared=on", "--private-memory"])
             .unwrap();
-        assert!(opt.validate_memory_options().is_err());
-    }
-
-    #[test]
-    fn test_memory_options_reject_hugepage_legacy_conflicts() {
-        let opt =
-            Options::try_parse_from(["openvmm", "--memory", "hugepages=on", "--private-memory"])
-                .unwrap();
-        assert!(opt.validate_memory_options().is_err());
-
-        let opt = Options::try_parse_from([
-            "openvmm",
-            "--memory",
-            "hugepages=on",
-            "--memory-backing-file",
-            "/tmp/memory.bin",
-        ])
-        .unwrap();
         assert!(opt.validate_memory_options().is_err());
     }
 

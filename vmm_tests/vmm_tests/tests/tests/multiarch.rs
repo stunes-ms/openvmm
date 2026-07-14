@@ -27,6 +27,9 @@ use vmm_test_macros::vmm_test_with;
 mod dio_nic;
 /// Tests for Hyper-V integration components.
 mod ic;
+/// Tests for Windows large-page (2 MB SLAT) guest RAM backing.
+#[cfg(windows)]
+mod large_pages;
 // Memory Validation tests.
 mod memstat;
 /// NUMA topology tests.
