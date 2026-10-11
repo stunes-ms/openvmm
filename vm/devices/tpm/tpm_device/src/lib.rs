@@ -100,7 +100,7 @@ const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 // vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
 // blob.
 const LEGACY_VTPM_SIZE: usize = 16 * 1024;
-#[config(test)]
+#[cfg(test)]
 const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
 static_assertions::const_assert_eq!(
@@ -859,8 +859,7 @@ impl Tpm {
                 }
                 TpmAkCertType::Trusted(_, _) => {
                     // Otherwise, if the existing AKCert index is platform-
-                    // defined and this appears to be an HCL-provisioned
-                    // vTPM, then handle AKCert renewal from OpenHCL.
+                    // defined, then handle AKCert renewal from OpenHCL.
                     self.tpm_engine_helper.has_platform_akcert_index()
                 }
                 // If there's no AKCert, then don't handle renewal.
@@ -2283,7 +2282,8 @@ mod tests {
         }
     }
 
-    /// The 1.38 implementation must keep accepting legacy state.
+    /// The 1.38 implementation must keep accepting legacy state. A legacy-size
+    /// TPM should have an AKCert index created.
     #[async_test]
     async fn test_legacy_nvram_size_allowed_for_v138() {
         assert!(
@@ -2292,6 +2292,11 @@ mod tests {
                 .is_ok(),
             "legacy nvram size is supported by 1.38"
         );
+
+        tpm.tpm_engine_helper
+            .find_nv_index(TPM_NV_INDEX_AIK_CERT)
+            .expect("find_nv_index should succeed")
+            .expect("AKCert index should be present");
     }
 
     /// Each library is compiled for a fixed NVRAM size and cannot be handed a
