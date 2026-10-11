@@ -2310,6 +2310,7 @@ mod tests {
 
         let nv_bits = TpmaNvBits::from(result.nv_public.nv_public.attributes.0.get());
         assert!(nv_bits.nv_platformcreate());
+        assert!(tpm.handle_ak_cert_renewal);
     }
 
     /// Each library is compiled for a fixed NVRAM size and cannot be handed a
