@@ -96,9 +96,12 @@ const AK_CERT_RENEW_PERIOD: std::time::Duration = std::time::Duration::new(24 * 
 // 2 seconds
 const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 
-// 16kB is the size of the blob that vtpmservice provisions. HCL/OpenHCL
-// provision a 32kB blob.
+// 16kB and 32kB: These are the sizes of the blob that gets provisioned for the
+// vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
+// blob.
 const LEGACY_VTPM_SIZE: usize = 16 * 1024;
+#[config(test)]
+const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
 static_assertions::const_assert_eq!(
     ms_tpm_20_ref::NV_MEMORY_SIZE,
