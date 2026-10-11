@@ -2593,7 +2593,7 @@ mod tests {
     /// The 1.38 implementation must keep accepting legacy state.
     #[async_test]
     async fn test_legacy_nvram_size_allowed_for_v138() {
-        let tpm = new_test_tpm(
+        let mut tpm = new_test_tpm(
             TpmVersion::V138,
             Some(LEGACY_VTPM_SIZE),
             None,
