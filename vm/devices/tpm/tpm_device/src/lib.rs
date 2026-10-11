@@ -2599,8 +2599,8 @@ mod tests {
             None,
             TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), Some(true)),
         )
-        .await;
-        assert!(tpm.is_ok(), "legacy nvram size is supported by 1.38");
+        .await
+        .expect("legacy nvram size is supported by 1.38");
 
         let result = tpm
             .tpm_engine_helper
