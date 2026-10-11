@@ -2252,7 +2252,14 @@ mod tests {
     /// Each library validates NVRAM against its compiled-in size.
     #[async_test]
     async fn test_legacy_nvram_size_rejected_for_v185() {
-        let Err(err) = new_test_tpm(TpmVersion::V185, Some(LEGACY_VTPM_SIZE), None, TpmAkCertType::None).await else {
+        let Err(err) = new_test_tpm(
+            TpmVersion::V185,
+            Some(LEGACY_VTPM_SIZE),
+            None,
+            TpmAkCertType::None,
+        )
+        .await
+        else {
             panic!("legacy nvram size must be rejected");
         };
 
@@ -2286,7 +2293,13 @@ mod tests {
     /// The 1.38 implementation must keep accepting legacy state.
     #[async_test]
     async fn test_legacy_nvram_size_allowed_for_v138() {
-        let tpm = new_test_tpm(TpmVersion::V138, Some(LEGACY_VTPM_SIZE), None, TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), Some(true))).await;
+        let tpm = new_test_tpm(
+            TpmVersion::V138,
+            Some(LEGACY_VTPM_SIZE),
+            None,
+            TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), Some(true)),
+        )
+        .await;
         assert!(tpm.is_ok(), "legacy nvram size is supported by 1.38");
 
         let result = tpm
@@ -2305,7 +2318,9 @@ mod tests {
     async fn test_default_nvram_size_initializes_both_versions() {
         for version in [TpmVersion::V138, TpmVersion::V185] {
             assert!(
-                new_test_tpm(version, None, None, TpmAkCertType::None).await.is_ok(),
+                new_test_tpm(version, None, None, TpmAkCertType::None)
+                    .await
+                    .is_ok(),
                 "default nvram size must initialize {version:?}"
             );
         }
@@ -2315,7 +2330,14 @@ mod tests {
     /// cleanly inside the library, so it must be rejected rather than used.
     #[async_test]
     async fn test_standard_nvram_size_rejected_for_v185() {
-        let Err(err) = new_test_tpm(TpmVersion::V185, Some(STANDARD_VTPM_SIZE), None, TpmAkCertType::None).await else {
+        let Err(err) = new_test_tpm(
+            TpmVersion::V185,
+            Some(STANDARD_VTPM_SIZE),
+            None,
+            TpmAkCertType::None,
+        )
+        .await
+        else {
             panic!("32kB nvram size must be rejected for 1.85");
         };
 
