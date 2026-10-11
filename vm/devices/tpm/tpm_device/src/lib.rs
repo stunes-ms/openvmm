@@ -96,11 +96,9 @@ const AK_CERT_RENEW_PERIOD: std::time::Duration = std::time::Duration::new(24 * 
 // 2 seconds
 const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 
-// 16kB and 32kB: These are the sizes of the blob that gets provisioned for the
-// vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
-// blob.
+// 16kB is the size of the blob that vtpmservice provisions. HCL/OpenHCL
+// provision a 32kB blob.
 const LEGACY_VTPM_SIZE: usize = 16 * 1024;
-const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
 static_assertions::const_assert_eq!(
     ms_tpm_20_ref::NV_MEMORY_SIZE,
@@ -619,7 +617,6 @@ impl Tpm {
     ) -> Result<(), TpmError> {
         struct TpmQuirks {
             force_ak_regen: bool,
-            large_vtpm_blob: bool,
             fixup_16k_ak_cert: bool,
         }
 
@@ -664,8 +661,6 @@ impl Tpm {
 
                     // If this is a small vTPM blob, potentially fixup the AK cert.
                     fixup_16k_ak_cert: blob.len() == LEGACY_VTPM_SIZE,
-
-                    large_vtpm_blob: blob.len() >= STANDARD_VTPM_SIZE,
                 }
             } else {
                 TpmQuirks {
@@ -673,9 +668,6 @@ impl Tpm {
                     force_ak_regen: false,
                     // No fixup is required, because there is no existing NVRAM blob.
                     fixup_16k_ak_cert: false,
-                    // This is a brand-new vTPM and will get provisioned with at
-                    // least 32kB of storage.
-                    large_vtpm_blob: true,
                 }
             }
         };
@@ -683,7 +675,6 @@ impl Tpm {
         let TpmQuirks {
             force_ak_regen,
             fixup_16k_ak_cert,
-            large_vtpm_blob,
         } = quirks;
 
         self.tpm_engine_helper
@@ -845,7 +836,7 @@ impl Tpm {
                         preserve_ak_cert: !self.refresh_tpm_seeds, // Preserve AK cert if TPM seeds are not refreshed
                         support_attestation_report: self.ak_cert_type.attested(),
                         mitigate_legacy_akcert: fixup_16k_ak_cert,
-                        create_if_missing: large_vtpm_blob,
+                        create_if_missing: true,
                     },
                 )
             {
@@ -867,7 +858,7 @@ impl Tpm {
                     // Otherwise, if the existing AKCert index is platform-
                     // defined and this appears to be an HCL-provisioned
                     // vTPM, then handle AKCert renewal from OpenHCL.
-                    self.tpm_engine_helper.has_platform_akcert_index() && large_vtpm_blob
+                    self.tpm_engine_helper.has_platform_akcert_index()
                 }
                 // If there's no AKCert, then don't handle renewal.
                 TpmAkCertType::None => false,
