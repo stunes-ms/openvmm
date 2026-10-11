@@ -2252,7 +2252,7 @@ mod tests {
     /// Each library validates NVRAM against its compiled-in size.
     #[async_test]
     async fn test_legacy_nvram_size_rejected_for_v185() {
-        let Err(err) = new_test_tpm(TpmVersion::V185, Some(LEGACY_VTPM_SIZE), None).await else {
+        let Err(err) = new_test_tpm(TpmVersion::V185, Some(LEGACY_VTPM_SIZE), None, TpmAkCertType::None).await else {
             panic!("legacy nvram size must be rejected");
         };
 
@@ -2270,6 +2270,7 @@ mod tests {
             TpmVersion::V185,
             Some(default_vtpm_size(TpmVersion::V185)),
             Some(vec![0; LEGACY_VTPM_SIZE]),
+            TpmAkCertType::None,
         )
         .await
         else {
@@ -2282,21 +2283,20 @@ mod tests {
         }
     }
 
-    /// The 1.38 implementation must keep accepting legacy state. A legacy-size
-    /// TPM should have an AKCert index created.
+    /// The 1.38 implementation must keep accepting legacy state.
     #[async_test]
     async fn test_legacy_nvram_size_allowed_for_v138() {
-        assert!(
-            new_test_tpm(TpmVersion::V138, Some(LEGACY_VTPM_SIZE), None)
-                .await
-                .is_ok(),
-            "legacy nvram size is supported by 1.38"
-        );
+        let tpm = new_test_tpm(TpmVersion::V138, Some(LEGACY_VTPM_SIZE), None, TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), Some(true))).await;
+        assert!(tpm.is_ok(), "legacy nvram size is supported by 1.38");
 
-        tpm.tpm_engine_helper
+        let result = tpm
+            .tpm_engine_helper
             .find_nv_index(TPM_NV_INDEX_AIK_CERT)
             .expect("find_nv_index should succeed")
-            .expect("AKCert index should be present");
+            .expect("AKCert NV index present");
+
+        let nv_bits = TpmaNvBits::from(result.nv_public.nv_public.attributes.0.get());
+        assert!(nv_bits.nv_platformcreate());
     }
 
     /// Each library is compiled for a fixed NVRAM size and cannot be handed a
@@ -2305,7 +2305,7 @@ mod tests {
     async fn test_default_nvram_size_initializes_both_versions() {
         for version in [TpmVersion::V138, TpmVersion::V185] {
             assert!(
-                new_test_tpm(version, None, None).await.is_ok(),
+                new_test_tpm(version, None, None, TpmAkCertType::None).await.is_ok(),
                 "default nvram size must initialize {version:?}"
             );
         }
@@ -2315,7 +2315,7 @@ mod tests {
     /// cleanly inside the library, so it must be rejected rather than used.
     #[async_test]
     async fn test_standard_nvram_size_rejected_for_v185() {
-        let Err(err) = new_test_tpm(TpmVersion::V185, Some(STANDARD_VTPM_SIZE), None).await else {
+        let Err(err) = new_test_tpm(TpmVersion::V185, Some(STANDARD_VTPM_SIZE), None, TpmAkCertType::None).await else {
             panic!("32kB nvram size must be rejected for 1.85");
         };
 
@@ -2329,6 +2329,7 @@ mod tests {
         version: TpmVersion,
         nvram_size: Option<usize>,
         nvram_blob: Option<Vec<u8>>,
+        cert_type: TpmAkCertType,
     ) -> Result<Tpm, TpmError> {
         let mut nvram_store = EphemeralNonVolatileStore::new_boxed();
         if let Some(blob) = nvram_blob {
@@ -2345,7 +2346,7 @@ mod tests {
             Box::new(|| std::time::Duration::new(0, 0)),
             false,
             false,
-            TpmAkCertType::None,
+            cert_type,
             None,
             None,
             false,
