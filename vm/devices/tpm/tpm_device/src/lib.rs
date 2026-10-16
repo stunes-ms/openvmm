@@ -102,8 +102,6 @@ const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 // vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
 // blob.
 const LEGACY_VTPM_SIZE: usize = 16 * 1024;
-#[cfg(test)]
-const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
 static_assertions::const_assert_eq!(
     ms_tpm_20_ref::NV_MEMORY_SIZE,
@@ -688,7 +686,10 @@ impl Tpm {
             .initialize_tpm_engine()
             .map_err(TpmErrorKind::InitializeTpmEngine)?;
 
-        // Read the mitigation marker before refreshing the TPM seeds.
+        // Read the mitigation marker before refreshing the TPM seeds. Create a
+        // missing AKCert index if the TPM has a large NVRAM, or if this is a
+        // refresh scenario (where OpenHCL was requested to refresh the TPM
+        // seeds) and there is no mitigation marker.
         let create_if_missing = self.nvram_size != LEGACY_VTPM_SIZE
             || (self.refresh_tpm_seeds
                 && match self
@@ -2257,6 +2258,8 @@ mod tests {
     struct TestRequestAkCertHelper {
         expected_input: Option<(bool, Option<Vec<u8>>)>,
     }
+
+    const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
     #[async_trait::async_trait]
     impl RequestAkCert for TestRequestAkCertHelper {
