@@ -689,10 +689,7 @@ impl Tpm {
         // seeds) and there is no mitigation marker.
         let create_if_missing = self.nvram_size != LEGACY_VTPM_SIZE
             || (self.refresh_tpm_seeds
-                && match self
-                    .tpm_engine_helper
-                    .find_nv_index(TPM_NV_INDEX_MITIGATED)
-                {
+                && match self.tpm_engine_helper.find_nv_index(TPM_NV_INDEX_MITIGATED) {
                     Ok(index) => index.is_none(),
                     Err(e) => {
                         tracing::error!(
