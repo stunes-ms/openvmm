@@ -2633,7 +2633,7 @@ mod tests {
             let mut tpm = new_test_tpm(
                 TpmVersion::V138,
                 Some(LEGACY_VTPM_SIZE),
-                None,
+                Some(vec![0; nvram_size]),
                 TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), None),
                 refresh_tpm_seeds,
             )
@@ -2660,7 +2660,7 @@ mod tests {
                 let mut tpm = new_test_tpm(
                     TpmVersion::V138,
                     Some(nvram_size),
-                    None,
+                    Some(vec![0; nvram_size]),
                     TpmAkCertType::None,
                     false,
                 )
