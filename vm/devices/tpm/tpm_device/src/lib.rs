@@ -2675,6 +2675,10 @@ mod tests {
                 let blob = tpm.rt.nvram_store.restore().await.unwrap().unwrap();
                 assert_eq!(blob.len(), nvram_size);
 
+                // Drop the TPM instance to uninitialize the underlying
+                // platform. Otherwise the next new_test_tpm will fail.
+                std::mem::drop(tpm);
+
                 for refresh_tpm_seeds in [false, true] {
                     let mut tpm = new_test_tpm(
                         TpmVersion::V138,
