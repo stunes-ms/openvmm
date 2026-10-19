@@ -623,6 +623,7 @@ impl Tpm {
         struct TpmQuirks {
             force_ak_regen: bool,
             fixup_16k_ak_cert: bool,
+            recovered: bool,
         }
 
         let quirks = {
@@ -634,7 +635,7 @@ impl Tpm {
                 .map_err(TpmErrorKind::ReadNvramState)?;
 
             if let Some(mut blob) = existing_nvmem_blob {
-                if matches!(
+                let recovered = if matches!(
                     self.tpm_engine_helper.tpm_engine.version(),
                     TpmVersion::V138
                 ) {
@@ -643,8 +644,10 @@ impl Tpm {
                     // that the TPM nvram is consistent - this code can be removed
                     // once the fix for reporting the NVRAM size correctly is
                     // everywhere.
-                    recover::recover_blob(&mut blob);
-                }
+                    recover::recover_blob(&mut blob)
+                } else {
+                    false
+                };
 
                 if let Err(e) = self.tpm_engine_helper.tpm_engine.reset(Some(&blob)) {
                     if e.is_mismatched_blob_size() {
@@ -666,6 +669,9 @@ impl Tpm {
 
                     // If this is a small vTPM blob, potentially fixup the AK cert.
                     fixup_16k_ak_cert: blob.len() == LEGACY_VTPM_SIZE,
+
+                    // Whether the TPM blob was recovered.
+                    recovered,
                 }
             } else {
                 TpmQuirks {
@@ -673,6 +679,8 @@ impl Tpm {
                     force_ak_regen: false,
                     // No fixup is required, because there is no existing NVRAM blob.
                     fixup_16k_ak_cert: false,
+                    // No recovery happened.
+                    recovered: false,
                 }
             }
         };
@@ -680,6 +688,7 @@ impl Tpm {
         let TpmQuirks {
             force_ak_regen,
             fixup_16k_ak_cert,
+            recovered,
         } = quirks;
 
         self.tpm_engine_helper
@@ -860,6 +869,7 @@ impl Tpm {
                         support_attestation_report: self.ak_cert_type.attested(),
                         mitigate_legacy_akcert: fixup_16k_ak_cert,
                         create_if_missing,
+                        recovered,
                     },
                 )
             {
