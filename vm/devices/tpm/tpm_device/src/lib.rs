@@ -102,6 +102,7 @@ const REPORT_TIMER_PERIOD: std::time::Duration = std::time::Duration::new(2, 0);
 // vTPM state. vtpmservice provisions a 16kB blob; HCL/OpenHCL provision a 32kB
 // blob.
 const LEGACY_VTPM_SIZE: usize = 16 * 1024;
+const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
 static_assertions::const_assert_eq!(
     ms_tpm_20_ref::NV_MEMORY_SIZE,
@@ -622,6 +623,7 @@ impl Tpm {
     ) -> Result<(), TpmError> {
         struct TpmQuirks {
             force_ak_regen: bool,
+            large_vtpm_blob: bool,
             fixup_16k_ak_cert: bool,
             recovered: bool,
         }
@@ -670,6 +672,8 @@ impl Tpm {
                     // If this is a small vTPM blob, potentially fixup the AK cert.
                     fixup_16k_ak_cert: blob.len() == LEGACY_VTPM_SIZE,
 
+                    large_vtpm_blob: blob.len() >= STANDARD_VTPM_SIZE,
+
                     // Whether the TPM blob was recovered.
                     recovered,
                 }
@@ -679,6 +683,9 @@ impl Tpm {
                     force_ak_regen: false,
                     // No fixup is required, because there is no existing NVRAM blob.
                     fixup_16k_ak_cert: false,
+                    // This is a brand-new vTPM and will get provisioned with at
+                    // least 32kB of storage.
+                    large_vtpm_blob: true,
                     // No recovery happened.
                     recovered: false,
                 }
@@ -688,6 +695,7 @@ impl Tpm {
         let TpmQuirks {
             force_ak_regen,
             fixup_16k_ak_cert,
+            large_vtpm_blob,
             recovered,
         } = quirks;
 
@@ -699,7 +707,7 @@ impl Tpm {
         // missing AKCert index if the TPM has a large NVRAM, or if this is a
         // refresh scenario (where OpenHCL was requested to refresh the TPM
         // seeds) and there is no mitigation marker.
-        let create_if_missing = self.nvram_size != LEGACY_VTPM_SIZE
+        let create_if_missing = large_vtpm_blob
             || (self.refresh_tpm_seeds
                 && match self.tpm_engine_helper.find_nv_index(TPM_NV_INDEX_MITIGATED) {
                     Ok(index) => index.is_none(),
@@ -2265,8 +2273,6 @@ mod tests {
     struct TestRequestAkCertHelper {
         expected_input: Option<(bool, Option<Vec<u8>>)>,
     }
-
-    const STANDARD_VTPM_SIZE: usize = 32 * 1024;
 
     #[async_trait::async_trait]
     impl RequestAkCert for TestRequestAkCertHelper {
