@@ -2677,7 +2677,7 @@ mod tests {
 
                 // Drop the TPM instance to uninitialize the underlying
                 // platform. Otherwise the next new_test_tpm will fail.
-                std::mem::drop(tpm);
+                drop(tpm);
 
                 for refresh_tpm_seeds in [false, true] {
                     let mut tpm = new_test_tpm(
