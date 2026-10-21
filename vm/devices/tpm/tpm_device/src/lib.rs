@@ -2395,7 +2395,9 @@ mod tests {
         }
 
         for version in [TpmVersion::V138, TpmVersion::V185] {
-            let mut tpm = new_test_tpm(version, None, None).await.unwrap();
+            let mut tpm = new_test_tpm(version, None, None, TpmAkCertType::None, false)
+                .await
+                .unwrap();
             let key = TpmRsa2kPublic {
                 modulus: [0; 256],
                 exponent: [0; 3],
@@ -2451,7 +2453,9 @@ mod tests {
         use tpm_protocol::tpm20proto::TPM20_RH_PLATFORM;
 
         for version in [TpmVersion::V138, TpmVersion::V185] {
-            let mut tpm = new_test_tpm(version, None, None).await.unwrap();
+            let mut tpm = new_test_tpm(version, None, None, TpmAkCertType::None, false)
+                .await
+                .unwrap();
             assert!(tpm.read_ak_cert().unwrap().is_none());
 
             let old_time = std::time::UNIX_EPOCH;
@@ -2533,7 +2537,9 @@ mod tests {
     #[async_test]
     async fn test_ak_cert_write_failure_preserves_renewal_time() {
         for version in [TpmVersion::V138, TpmVersion::V185] {
-            let mut tpm = new_test_tpm(version, None, None).await.unwrap();
+            let mut tpm = new_test_tpm(version, None, None, TpmAkCertType::None, false)
+                .await
+                .unwrap();
             let logger = Arc::new(TestTpmLogger::default());
             tpm.logger = Some(logger.clone());
             tpm.tpm_engine_helper
@@ -2634,7 +2640,7 @@ mod tests {
                 TpmVersion::V138,
                 Some(LEGACY_VTPM_SIZE),
                 Some(vec![0; LEGACY_VTPM_SIZE]),
-                TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), None),
+                TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper::default()), None),
                 refresh_tpm_seeds,
             )
             .await
@@ -2684,7 +2690,7 @@ mod tests {
                         TpmVersion::V138,
                         Some(nvram_size),
                         Some(blob.clone()),
-                        TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper), None),
+                        TpmAkCertType::Trusted(Arc::new(TestRequestAkCertHelper::default()), None),
                         refresh_tpm_seeds,
                     )
                     .await
