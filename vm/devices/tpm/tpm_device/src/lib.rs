@@ -732,6 +732,18 @@ impl Tpm {
                 return Err(TpmErrorKind::RefreshTpmSeeds(e).into());
             }
 
+            // Delete any existing AKCert after refreshing seeds.
+            if let Err(e) = self
+                .tpm_engine_helper
+                .nv_undefine_space(TPM20_RH_PLATFORM, TPM_NV_INDEX_AIK_CERT)
+            {
+                tracing::error!(
+                    CVM_ALLOWED,
+                    err = &e as &dyn std::error::Error,
+                    "error deleting AKCert after refreshing seeds"
+                );
+            }
+
             tracing::info!("TPM seeds have been refreshed");
         }
 
